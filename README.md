@@ -30,7 +30,7 @@ It queries public job APIs (RemoteOK, Remotive, Greenhouse, Ashby, Lever, and â€
 
 ```bash
 # Clone into your Claude Code skills directory
-git clone https://github.com/Yodablues/claude-code-job-search ~/.claude/skills/job-search
+git clone https://github.com/oak-wildwood/claude-code-job-search ~/.claude/skills/job-search
 ```
 
 ### Job search setup
