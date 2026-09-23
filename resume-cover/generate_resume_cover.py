@@ -1,8 +1,12 @@
 """
-Generate tailored resume and cover letter .docx files from JSON input.
+Generate a tailored resume and cover letter from JSON input.
+
+Always writes Markdown (the source of truth — readable, diffable, easy to
+tweak by hand). Pass --pdf to also render a PDF for submission, via a
+headless Chrome print (macOS, zero extra installs).
 
 Usage:
-    python generate_resume_cover.py --config /path/to/config.json
+    python generate_resume_cover.py --config /path/to/config.json [--pdf]
 
 Config (config.json):
     {
@@ -13,7 +17,7 @@ Config (config.json):
         "linkedin": "linkedin.com/in/your-profile",
         "website": "yoursite.com",
         "github": "github.com/you",
-        "source_resume": "/path/to/Your_Resume.docx",
+        "source_resume": "/path/to/Your_Resume.md",
         "output_dir": "/path/to/output/directory"
     }
 
@@ -22,8 +26,9 @@ Reads (from output_dir):
     - cover_letter_tailored.json
 
 Writes (to output_dir):
-    - {Name}_Resume_{company}_{title}.docx
-    - {Name}_CoverLetter_{company}_{title}.docx
+    - {Name}_Resume_{company}_{title}.md
+    - {Name}_CoverLetter_{company}_{title}.md
+    - (with --pdf) matching .pdf files, rendered via headless Chrome
 
 JSON Schemas
 ============
@@ -71,13 +76,44 @@ cover_letter_tailored.json:
 """
 
 import argparse
+import html
 import json
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-from docx import Document
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+CHROME_CANDIDATES = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+]
+
+PAGE_CSS = """
+body { font-family: Calibri, "Helvetica Neue", Arial, sans-serif; color: #1a1a1a;
+       font-size: 11pt; margin: 0.6in 0.7in; }
+h1 { text-align: center; font-size: 20pt; margin: 0 0 2pt 0; }
+.contact { text-align: center; font-size: 10pt; margin: 0 0 2pt 0; color: #333; }
+hr { border: none; border-top: 1px solid #b4b4b4; margin: 6pt 0; }
+h2 { font-size: 12pt; margin: 10pt 0 3pt 0; }
+p { margin: 0 0 4pt 0; }
+.job-title { font-weight: bold; font-size: 11pt; margin: 6pt 0 0 0; }
+.company-line { font-size: 10pt; color: #646464; margin: 0 0 2pt 0; }
+ul { margin: 0 0 4pt 0; padding-left: 18pt; }
+li { font-size: 10pt; margin: 1pt 0; }
+.skill-label { font-weight: bold; }
+"""
+
+COVER_CSS = """
+body { font-family: Calibri, "Helvetica Neue", Arial, sans-serif; color: #1a1a1a;
+       font-size: 11pt; margin: 1in; }
+.name { font-weight: bold; font-size: 14pt; margin: 0; }
+.line { margin: 0 0 2pt 0; }
+.greeting { margin: 16pt 0 8pt 0; }
+.lead { font-weight: bold; }
+p { margin: 0 0 8pt 0; }
+"""
 
 
 def load_config(config_path):
@@ -91,201 +127,152 @@ def load_config(config_path):
     return cfg
 
 
-def set_run(run, size=11, bold=False, color=None):
-    run.font.size = Pt(size)
-    run.font.name = "Calibri"
-    run.bold = bold
-    if color:
-        run.font.color.rgb = RGBColor(*color)
+def esc(text):
+    return html.escape(text, quote=False)
 
 
-def add_body(doc, text, size=11, bold=False, align=WD_ALIGN_PARAGRAPH.LEFT,
-             space_after=2, space_before=0):
-    p = doc.add_paragraph()
-    p.alignment = align
-    p.space_after = Pt(space_after)
-    p.space_before = Pt(space_before)
-    run = p.add_run(text)
-    set_run(run, size=size, bold=bold)
-    return p
+# -- Resume --------------------------------------------------------------
 
 
-def add_bullet(doc, text, size=10):
-    p = doc.add_paragraph(style="List Bullet")
-    p.space_after = Pt(1)
-    p.space_before = Pt(1)
-    p.clear()
-    run = p.add_run(text)
-    set_run(run, size=size)
+def build_resume_markdown(data, cfg):
+    lines = [f"# {cfg['name']}", ""]
 
-
-def add_separator(doc):
-    p = doc.add_paragraph()
-    p.space_after = Pt(0)
-    p.space_before = Pt(0)
-    run = p.add_run("_" * 80)
-    set_run(run, size=8, color=(180, 180, 180))
-
-
-# -- Resume ------------------------------------------------------------------
-
-
-def build_resume(data, cfg):
-    doc = Document()
-    style = doc.styles["Normal"]
-    style.font.name = "Calibri"
-    style.font.size = Pt(11)
-    style.paragraph_format.space_after = Pt(2)
-
-    for sec in doc.sections:
-        sec.top_margin = Inches(0.6)
-        sec.bottom_margin = Inches(0.5)
-        sec.left_margin = Inches(0.7)
-        sec.right_margin = Inches(0.7)
-
-    # Header — name
-    add_body(doc, cfg["name"], size=20, bold=True,
-             align=WD_ALIGN_PARAGRAPH.CENTER, space_after=1)
-
-    # Header — contact line(s)
-    contact_parts = []
-    if cfg.get("location"):
-        contact_parts.append(cfg["location"])
-    if cfg.get("linkedin"):
-        contact_parts.append(cfg["linkedin"])
-    if cfg.get("website"):
-        contact_parts.append(cfg["website"])
-    if contact_parts:
-        add_body(doc, "  |  ".join(contact_parts),
-                 size=10, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=0)
-
-    contact2 = []
-    if cfg.get("email"):
-        contact2.append(cfg["email"])
-    if cfg.get("phone"):
-        contact2.append(cfg["phone"])
+    contact1 = [p for p in [cfg.get("location"), cfg.get("linkedin"), cfg.get("website")] if p]
+    if contact1:
+        lines.append(" | ".join(contact1))
+    contact2 = [p for p in [cfg.get("email"), cfg.get("phone")] if p]
     if contact2:
-        add_body(doc, "  |  ".join(contact2),
-                 size=10, align=WD_ALIGN_PARAGRAPH.CENTER, space_after=2)
-
-    add_separator(doc)
-
-    # Summary
-    add_body(doc, "PROFESSIONAL SUMMARY", size=12, bold=True,
-             space_before=8, space_after=2)
-    add_body(doc, data["summary"], size=10, space_after=4)
-
-    add_separator(doc)
-
-    # Experience
-    add_body(doc, "PROFESSIONAL EXPERIENCE", size=12, bold=True,
-             space_before=8, space_after=2)
+        lines.append(" | ".join(contact2))
+    lines += ["", "---", "", "## Professional Summary", "", data["summary"], "", "---", "",
+              "## Professional Experience", ""]
 
     for job in data["jobs"]:
-        p = doc.add_paragraph()
-        p.space_before = Pt(6)
-        p.space_after = Pt(0)
-        r = p.add_run(job["title"])
-        set_run(r, size=11, bold=True)
-
-        p2 = doc.add_paragraph()
-        p2.space_before = Pt(0)
-        p2.space_after = Pt(2)
-        r2 = p2.add_run(job["company_line"])
-        set_run(r2, size=10, color=(100, 100, 100))
-
+        lines.append(f"**{job['title']}**")
+        lines.append(f"*{job['company_line']}*")
+        lines.append("")
         for b in job["bullets"]:
-            add_bullet(doc, b, size=10)
+            lines.append(f"- {b}")
+        lines.append("")
 
-    add_separator(doc)
+    lines += ["---", "", "## Education", ""]
+    for edu in data["education"]:
+        lines.append(f"- {edu}")
 
-    # Education
-    add_body(doc, "EDUCATION", size=12, bold=True,
-             space_before=8, space_after=2)
-    for i, edu in enumerate(data["education"]):
-        sa = 1 if i < len(data["education"]) - 1 else 4
-        add_body(doc, edu, size=10, space_after=sa)
-
-    add_separator(doc)
-
-    # Skills
-    add_body(doc, "TECHNICAL SKILLS", size=12, bold=True,
-             space_before=8, space_after=2)
+    lines += ["", "---", "", "## Technical Skills", ""]
     for skill in data["skills"]:
-        p = doc.add_paragraph()
-        p.space_after = Pt(1)
-        p.space_before = Pt(1)
-        r1 = p.add_run(f"{skill['label']}: ")
-        set_run(r1, size=10, bold=True)
-        r2 = p.add_run(skill["value"])
-        set_run(r2, size=10)
+        lines.append(f"- **{skill['label']}:** {skill['value']}")
 
-    return doc
+    return "\n".join(lines) + "\n"
 
 
-# -- Cover Letter ------------------------------------------------------------
+def build_resume_html(data, cfg):
+    parts = [f"<html><head><meta charset='utf-8'><style>{PAGE_CSS}</style></head><body>"]
+    parts.append(f"<h1>{esc(cfg['name'])}</h1>")
+
+    contact1 = [esc(p) for p in [cfg.get("location"), cfg.get("linkedin"), cfg.get("website")] if p]
+    if contact1:
+        parts.append(f"<p class='contact'>{'&nbsp;&nbsp;|&nbsp;&nbsp;'.join(contact1)}</p>")
+    contact2 = [esc(p) for p in [cfg.get("email"), cfg.get("phone")] if p]
+    if contact2:
+        parts.append(f"<p class='contact'>{'&nbsp;&nbsp;|&nbsp;&nbsp;'.join(contact2)}</p>")
+
+    parts.append("<hr><h2>Professional Summary</h2>")
+    parts.append(f"<p>{esc(data['summary'])}</p>")
+
+    parts.append("<hr><h2>Professional Experience</h2>")
+    for job in data["jobs"]:
+        parts.append(f"<p class='job-title'>{esc(job['title'])}</p>")
+        parts.append(f"<p class='company-line'>{esc(job['company_line'])}</p>")
+        parts.append("<ul>" + "".join(f"<li>{esc(b)}</li>" for b in job["bullets"]) + "</ul>")
+
+    parts.append("<hr><h2>Education</h2><ul>")
+    parts += [f"<li>{esc(e)}</li>" for e in data["education"]]
+    parts.append("</ul>")
+
+    parts.append("<hr><h2>Technical Skills</h2><ul>")
+    for skill in data["skills"]:
+        parts.append(f"<li><span class='skill-label'>{esc(skill['label'])}:</span> {esc(skill['value'])}</li>")
+    parts.append("</ul></body></html>")
+
+    return "\n".join(parts)
 
 
-def build_cover_letter(data, cfg):
-    doc = Document()
-    style = doc.styles["Normal"]
-    style.font.name = "Calibri"
-    style.font.size = Pt(11)
-    style.paragraph_format.space_after = Pt(6)
+# -- Cover Letter ----------------------------------------------------------
 
-    for sec in doc.sections:
-        sec.top_margin = Inches(1)
-        sec.bottom_margin = Inches(1)
-        sec.left_margin = Inches(1)
-        sec.right_margin = Inches(1)
 
-    # Sender info
-    add_body(doc, cfg["name"], size=14, bold=True, space_after=0)
+def build_cover_markdown(data, cfg):
+    lines = [f"**{cfg['name']}**"]
     if cfg.get("location"):
-        add_body(doc, cfg["location"], size=11, space_after=0)
-
-    contact = []
-    if cfg.get("email"):
-        contact.append(cfg["email"])
-    if cfg.get("phone"):
-        contact.append(cfg["phone"])
+        lines.append(cfg["location"])
+    contact = [p for p in [cfg.get("email"), cfg.get("phone")] if p]
     if contact:
-        add_body(doc, "  |  ".join(contact), size=11, space_after=0)
-
-    links = []
-    if cfg.get("website"):
-        links.append(cfg["website"])
-    if cfg.get("linkedin"):
-        links.append(cfg["linkedin"])
-    if cfg.get("github"):
-        links.append(cfg["github"])
+        lines.append(" | ".join(contact))
+    links = [p for p in [cfg.get("website"), cfg.get("linkedin"), cfg.get("github")] if p]
     if links:
-        add_body(doc, "  |  ".join(links), size=11, space_after=12)
+        lines.append(" | ".join(links))
+    lines.append("")
 
-    # Greeting
-    add_body(doc, data["recipient"], size=11, space_after=8, space_before=4)
+    lines += [data["recipient"], "", data["opening"], ""]
 
-    # Opening paragraph
-    add_body(doc, data["opening"], size=11, space_after=8)
+    for sec in data["body_sections"]:
+        lines.append(f"**{sec['bold_lead']}**{sec['text']}")
+        lines.append("")
 
-    # Body sections with bold leads
-    for section in data["body_sections"]:
-        p = doc.add_paragraph()
-        p.space_after = Pt(8)
-        r1 = p.add_run(section["bold_lead"])
-        set_run(r1, size=11, bold=True)
-        r2 = p.add_run(section["text"])
-        set_run(r2, size=11)
+    lines += [data["closing"], "", data["signoff"], "", "Sincerely,", "", f"**{cfg['name']}**"]
+    return "\n".join(lines) + "\n"
 
-    # Closing
-    add_body(doc, data["closing"], size=11, space_after=8)
 
-    # Sign-off
-    add_body(doc, data["signoff"], size=11, space_after=12)
-    add_body(doc, "Sincerely,", size=11, space_after=0)
-    add_body(doc, cfg["name"], size=11, bold=True)
+def build_cover_html(data, cfg):
+    parts = [f"<html><head><meta charset='utf-8'><style>{COVER_CSS}</style></head><body>"]
+    parts.append(f"<p class='name'>{esc(cfg['name'])}</p>")
+    if cfg.get("location"):
+        parts.append(f"<p class='line'>{esc(cfg['location'])}</p>")
+    contact = [esc(p) for p in [cfg.get("email"), cfg.get("phone")] if p]
+    if contact:
+        parts.append(f"<p class='line'>{'&nbsp;&nbsp;|&nbsp;&nbsp;'.join(contact)}</p>")
+    links = [esc(p) for p in [cfg.get("website"), cfg.get("linkedin"), cfg.get("github")] if p]
+    if links:
+        parts.append(f"<p class='line'>{'&nbsp;&nbsp;|&nbsp;&nbsp;'.join(links)}</p>")
 
-    return doc
+    parts.append(f"<p class='greeting'>{esc(data['recipient'])}</p>")
+    parts.append(f"<p>{esc(data['opening'])}</p>")
+
+    for sec in data["body_sections"]:
+        parts.append(f"<p><span class='lead'>{esc(sec['bold_lead'])}</span>{esc(sec['text'])}</p>")
+
+    parts.append(f"<p>{esc(data['closing'])}</p>")
+    parts.append(f"<p>{esc(data['signoff'])}</p>")
+    parts.append("<p>Sincerely,</p>")
+    parts.append(f"<p><strong>{esc(cfg['name'])}</strong></p>")
+    parts.append("</body></html>")
+    return "\n".join(parts)
+
+
+# -- PDF rendering -----------------------------------------------------------
+
+
+def find_chrome():
+    for path in CHROME_CANDIDATES:
+        if Path(path).exists():
+            return path
+    found = shutil.which("chrome") or shutil.which("chromium")
+    if found:
+        return found
+    return None
+
+
+def render_pdf(html_str, pdf_path, chrome_path):
+    with tempfile.NamedTemporaryFile(suffix=".html", mode="w", encoding="utf-8", delete=False) as f:
+        f.write(html_str)
+        tmp_html = f.name
+    try:
+        subprocess.run(
+            [chrome_path, "--headless", "--disable-gpu", "--no-pdf-header-footer",
+             f"--print-to-pdf={pdf_path}", f"file://{tmp_html}"],
+            check=True, capture_output=True,
+        )
+    finally:
+        Path(tmp_html).unlink(missing_ok=True)
 
 
 # -- Main --------------------------------------------------------------------
@@ -293,9 +280,16 @@ def build_cover_letter(data, cfg):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate tailored resume and cover letter .docx files")
+        description="Generate a tailored cover letter (Markdown, optionally PDF). "
+                     "Resume is NOT generated unless --with-resume is passed -- "
+                     "default to the user's own master resume for actual submissions.")
     parser.add_argument("--config", required=True,
                         help="Path to config.json with personal info and paths")
+    parser.add_argument("--pdf", action="store_true",
+                        help="Also render PDF versions via headless Chrome")
+    parser.add_argument("--with-resume", action="store_true",
+                        help="Also generate a tailored resume. Off by default -- "
+                             "only pass this if explicitly asked for a tailored resume.")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -304,33 +298,50 @@ def main():
     resume_json = output_dir / "resume_tailored.json"
     cover_json = output_dir / "cover_letter_tailored.json"
 
-    if not resume_json.exists():
-        print(f"ERROR: {resume_json} not found", file=sys.stderr)
-        sys.exit(1)
     if not cover_json.exists():
         print(f"ERROR: {cover_json} not found", file=sys.stderr)
         sys.exit(1)
+    if args.with_resume and not resume_json.exists():
+        print(f"ERROR: {resume_json} not found", file=sys.stderr)
+        sys.exit(1)
 
-    with open(resume_json, encoding="utf-8") as f:
-        resume_data = json.load(f)
     with open(cover_json, encoding="utf-8") as f:
         cover_data = json.load(f)
 
-    company = resume_data["company"]
-    short_title = resume_data["short_title"]
-
-    # Build filename-safe name (e.g. "Tom Colarusso" -> "Tom_Colarusso")
+    company = cover_data["company"]
+    short_title = cover_data["short_title"]
     safe_name = cfg["name"].replace(" ", "_")
 
-    resume_doc = build_resume(resume_data, cfg)
-    resume_path = output_dir / f"{safe_name}_Resume_{company}_{short_title}.docx"
-    resume_doc.save(str(resume_path))
-    print(f"Resume saved: {resume_path}")
+    resume_data = None
+    if args.with_resume:
+        with open(resume_json, encoding="utf-8") as f:
+            resume_data = json.load(f)
 
-    cover_doc = build_cover_letter(cover_data, cfg)
-    cover_path = output_dir / f"{safe_name}_CoverLetter_{company}_{short_title}.docx"
-    cover_doc.save(str(cover_path))
-    print(f"Cover letter saved: {cover_path}")
+        resume_md = build_resume_markdown(resume_data, cfg)
+        resume_md_path = output_dir / f"{safe_name}_Resume_{company}_{short_title}.md"
+        resume_md_path.write_text(resume_md, encoding="utf-8")
+        print(f"Resume saved: {resume_md_path}")
+
+    cover_md = build_cover_markdown(cover_data, cfg)
+    cover_md_path = output_dir / f"{safe_name}_CoverLetter_{company}_{short_title}.md"
+    cover_md_path.write_text(cover_md, encoding="utf-8")
+    print(f"Cover letter saved: {cover_md_path}")
+
+    if args.pdf:
+        chrome_path = find_chrome()
+        if not chrome_path:
+            print("ERROR: --pdf requested but no Chrome/Chromium install found "
+                  f"(checked {CHROME_CANDIDATES})", file=sys.stderr)
+            sys.exit(1)
+
+        if args.with_resume:
+            resume_pdf_path = output_dir / f"{safe_name}_Resume_{company}_{short_title}.pdf"
+            render_pdf(build_resume_html(resume_data, cfg), resume_pdf_path, chrome_path)
+            print(f"Resume PDF saved: {resume_pdf_path}")
+
+        cover_pdf_path = output_dir / f"{safe_name}_CoverLetter_{company}_{short_title}.pdf"
+        render_pdf(build_cover_html(cover_data, cfg), cover_pdf_path, chrome_path)
+        print(f"Cover letter PDF saved: {cover_pdf_path}")
 
 
 if __name__ == "__main__":

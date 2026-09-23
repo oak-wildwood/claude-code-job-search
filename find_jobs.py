@@ -2,22 +2,39 @@
 """
 find_jobs.py — GATHER stage for the job-search skill.
 
-This script only casts a wide net and does a coarse pre-filter (seniority +
-engineering role + relevant tech + remote). It deliberately does NOT decide fit
-quality — Claude reads the emitted snippets and judges each against the
-candidate's resume + salary bar.
+This script only casts a wide net and does a coarse pre-filter. It deliberately
+does NOT decide fit quality — Claude reads the emitted snippets and judges each
+against the candidate's resume + salary/rate bar.
 
-Output: writes job_candidates.json (full records w/ snippets) next to this
-script and prints a short summary. No third-party deps (urllib only).
+Two modes, picked with --mode:
+  fulltime (default) — seniority + engineering role + relevant tech + remote.
+    Writes job_candidates.json (unchanged filename, back-compat).
+  contract — engineering role + relevant tech + remote + contract/1099/C2C
+    language, seniority NOT required (contract reqs are often titled flatly,
+    e.g. "Contract Frontend Developer"). Adds We Work Remotely (agencies post
+    contract reqs there heavily) and filters Remotive/RemoteOK by their native
+    job-type/tag fields in addition to text. Writes job_candidates_contract.json
+    so a contract gather never clobbers a fulltime one (and vice versa).
+
+Output: writes the mode's JSON file (full records w/ snippets) next to this
+script and prints a short summary. No third-party deps (urllib + stdlib xml only).
 Edit CONFIG to tune criteria or add companies (unknown ATS tokens are skipped).
+
+Not covered here: pure W-2 staffing agencies (Kforce, TEKsystems, Insight
+Global, Robert Half, Dexian) and vetted marketplaces (Braintrust, Toptal).
+None expose a public feed — Braintrust's own job list is gated behind
+"Certified Talent" membership, not a public board. Those are a manual
+registration/application step, not something this script can gather.
 """
 
+import argparse
 import json
 import os
 import re
 import time
 import urllib.request
 import urllib.parse
+import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ----------------------------- CONFIG ---------------------------------------
@@ -27,6 +44,26 @@ TECH = ["vue", "react", "typescript", "javascript", "full stack", "fullstack",
         "full-stack", "front-end", "frontend", "node", "python"]
 US_HINTS = ["us", "usa", "u.s", "united states", "anywhere", "worldwide",
             "north america", "remote"]
+# contract mode: replaces the SENIORITY requirement (title/desc must show
+# this instead of a seniority word — contract reqs skip seniority in the
+# title far more often than FT postings do)
+CONTRACT_TERMS = ["contract", "contractor", "contract-to-hire", "c2h", "1099",
+                   "freelance", "consultant", "consulting", "corp-to-corp",
+                   "corp to corp", "c2c", "w2 contract", "temp-to-hire",
+                   "temporary"]
+# "consultant"/"consulting" are dropped for TITLE matching specifically --
+# live-tested 2026-09-23: they're common in legitimate FT job titles
+# ("Senior Consulting Engineer", "Solutions Consultant") with no relation to
+# 1099/gig work, so they produced title-level false positives even though
+# the boilerplate false-positive problem (see coarse_match's docstring) is
+# fixed. Still used for body-context matching, where they're one signal
+# among many rather than the sole match.
+CONTRACT_TITLE_TERMS = [t for t in CONTRACT_TERMS if t not in ("consultant", "consulting")]
+WWR_FEEDS = [
+    "https://weworkremotely.com/categories/remote-programming-jobs.rss",
+    "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
+    "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
+]
 
 GREENHOUSE = [
     # --- original ---
@@ -198,8 +235,38 @@ TIMEOUT = 20
 RETRIES = 3                # retry transient failures / rate limits with backoff
 # Companies manually marked as already applied (add your own)
 MANUAL_APPLIED = set()
-# Directory scanned to auto-exclude companies already applied to (tailored docs present)
-APPLIED_DIR = ""
+
+
+def _load_local_config():
+    """Personal values (real name, real local path) live only in the gitignored
+    config.json, never hardcoded here -- this script is published/shared, config.json
+    isn't. Missing config.json (e.g. a fresh clone) just disables auto-exclusion."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return {}
+
+
+_resume_cfg = _load_local_config().get("resume", {})
+# Directory scanned to auto-exclude companies already applied to (tailored docs present).
+# From config.json's resume.applied_docs_dir; empty disables the auto-exclusion.
+APPLIED_DIR = _resume_cfg.get("applied_docs_dir", "")
+
+
+def _pattern_to_regex(pattern):
+    """Turn a config.json filename pattern like 'Name_Resume_{company}.md' into a
+    regex with the company name captured and a loosened extension (md/pdf/docx --
+    whichever a run actually wrote, not just the one pattern names)."""
+    esc = re.escape(pattern).replace(re.escape("{company}"), "(.+)")
+    return re.sub(r"\\\.(?:md|pdf|docx)$", r"\\.(?:md|pdf|docx)", esc)
+
+
+_APPLIED_REGEXES = [re.compile(_pattern_to_regex(p), re.I)
+                     for p in (_resume_cfg.get("resume_filename_pattern", ""),
+                               _resume_cfg.get("cover_letter_filename_pattern", ""))
+                     if p]
 # Filename suffix tokens that are role descriptors / housekeeping, not companies
 EXCLUDE_STOPWORDS = {"backup", "principal", "master"}
 SNIPPET_LEN = 700
@@ -227,11 +294,13 @@ def applied_tokens():
     toks = set()
     try:
         for fn in os.listdir(APPLIED_DIR):
-            m = re.match(r"Tom_Colarusso_(?:Resume|CoverLetter)_(.+)\.docx$", fn, re.I)
-            if m:
-                tok = _norm(m.group(1))
-                if tok and tok not in EXCLUDE_STOPWORDS:
-                    toks.add(tok)
+            for rx in _APPLIED_REGEXES:
+                m = rx.match(fn)
+                if m:
+                    tok = _norm(m.group(1))
+                    if tok and tok not in EXCLUDE_STOPWORDS:
+                        toks.add(tok)
+                    break
     except Exception:
         pass
     toks.update(MANUAL_APPLIED)
@@ -247,19 +316,62 @@ def strip_html(s):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", s or "")).strip()
 
 
+def extract_hourly_rate(text):
+    """Best-effort $NN/hr or $NN-NN/hour rate, for contract postings that quote
+    hourly instead of annual (rare in disclosed form, but worth catching)."""
+    if not text:
+        return None
+    vals = [int(m) for m in re.findall(
+        r"\$\s?(\d{2,3})(?:\.\d+)?\s?(?:/\s?(?:hr|hour)\b|per\s?hour\b)", text, re.I)]
+    plausible = [v for v in vals if 25 <= v <= 400]
+    return max(plausible) if plausible else None
+
+
 def extract_salary(text):
     if not text:
         return None
+    # Strip "401k"/"401(k)" retirement-plan mentions first -- the bare-digit
+    # k-suffix pattern below would otherwise misread it as a $401,000 salary
+    # (confirmed: this was silently corrupting salary data on nearly every
+    # posting that mentions 401k matching, since almost none of them are
+    # preceded by a $ sign the way a real salary figure would be).
+    text = re.sub(r"401\s?\(?[kK]\)?\b", "", text)
     t = text.replace(",", "")
     vals = [int(m) for m in re.findall(r"\$\s?(\d{5,7})\b", t)]
-    vals += [int(m) * 1000 for m in re.findall(r"\$?\s?(\d{2,3})\s?[kK]\b", text)]
+    vals += [int(m) * 1000 for m in re.findall(r"\$\s?(\d{2,3})\s?[kK]\b", text)]
+    # Fold a disclosed hourly rate in as its annualized equivalent (2080 hrs/yr)
+    # so contract postings still clear the same salary-floor plumbing FT
+    # postings use in prefilter.py -- the raw hourly figure is kept separately
+    # in rec()'s "rate_hourly" for the judge step, since annualizing overstates
+    # a 1099 rate (no benefits, no PTO, SE tax) and shouldn't be shown as if
+    # it were a comparable salary without that caveat.
+    hourly = extract_hourly_rate(text)
+    if hourly:
+        vals.append(hourly * 2080)
     plausible = [v for v in vals if 50_000 <= v <= 1_000_000]
     return max(plausible) if plausible else None
 
 
-def coarse_match(title, blob):
+def coarse_match(title, blob, mode="fulltime", title_only=False):
+    """title_only: contract mode on company ATS feeds (Greenhouse/Ashby/Lever)
+    only. Live-tested 2026-09-23: matching CONTRACT_TERMS against the full
+    body on these feeds was 267/268 false positives -- nearly every FT
+    posting's EEO/privacy-policy footer mentions "contractor" (e.g. a link
+    titled ".../Employee-and-Contractor-Privacy-Policy.pdf") or "temporary"
+    (work authorization boilerplate), which swamped the few genuine hits.
+    Employer-written titles don't carry that boilerplate, so title-only
+    matching is used there. Board/aggregator sources (RemoteOK, Remotive,
+    WWR) don't have this problem to the same degree and keep body matching."""
     tl = title.lower()
-    return (any(s in tl for s in SENIORITY)
+    if mode == "contract":
+        title_hit = any(s in tl for s in CONTRACT_TITLE_TERMS)
+        if title_only:
+            marker_hit = title_hit
+        else:
+            marker_hit = title_hit or any(s in blob.lower() for s in CONTRACT_TERMS)
+    else:
+        marker_hit = any(s in tl for s in SENIORITY)
+    return (marker_hit
             and any(r in tl for r in ROLE)
             and any(k in blob.lower() for k in TECH))
 
@@ -269,10 +381,13 @@ def us_remote(text):
     return any(h in t for h in US_HINTS)
 
 
-def rec(title, company, desc, url, source, location, salary_text=""):
+def rec(title, company, desc, url, source, location, salary_text="", job_type=""):
+    blob = (salary_text or "") + " " + desc
     return {
         "title": title, "company": company,
-        "salary": extract_salary((salary_text or "") + " " + desc),
+        "salary": extract_salary(blob),
+        "rate_hourly": extract_hourly_rate(blob),
+        "job_type": job_type or "",
         "location": location or "Remote",
         "us": us_remote((location or "") + " " + desc[:400]),
         "url": url, "source": source,
@@ -281,7 +396,7 @@ def rec(title, company, desc, url, source, location, salary_text=""):
 
 
 # ------------------------------ sources -------------------------------------
-def from_remoteok():
+def from_remoteok(mode="fulltime"):
     out = []
     try:
         data = json.loads(get("https://remoteok.com/api"))[1:]
@@ -289,31 +404,68 @@ def from_remoteok():
         return out
     for j in data:
         title = j.get("position", "")
-        blob = strip_html(j.get("description", "")) + " " + " ".join(j.get("tags", []))
-        if coarse_match(title, blob):
+        tags = j.get("tags", [])
+        # RemoteOK has no explicit job-type field; "freelance" is the closest
+        # tag signal it exposes, folded into coarse_match's text search below
+        # via the tag join -- not filtered separately.
+        blob = strip_html(j.get("description", "")) + " " + " ".join(tags)
+        if coarse_match(title, blob, mode):
             out.append(rec(title, j.get("company", ""), blob,
                            j.get("url") or j.get("apply_url", ""), "RemoteOK",
                            j.get("location") or "Remote"))
     return out
 
 
-def from_remotive():
+def from_remotive(mode="fulltime"):
     out = []
     try:
         data = json.loads(get("https://remotive.com/api/remote-jobs?category=software-dev&limit=100"))
     except Exception:
         return out
     for j in data.get("jobs", []):
+        jt = (j.get("job_type") or "").lower()
+        # Remotive discloses job_type directly -- use it as a hard filter on
+        # top of the text match rather than relying on keywords alone, since
+        # it's ground truth where the coarse text search is a guess.
+        if mode == "contract" and jt not in ("contract", "freelance", "temporary", ""):
+            continue
+        if mode == "fulltime" and jt not in ("full_time", ""):
+            continue
         title = j.get("title", "")
         blob = strip_html(j.get("description", "")) + " " + " ".join(j.get("tags", []))
-        if coarse_match(title, blob):
+        if coarse_match(title, blob, mode):
             out.append(rec(title, j.get("company_name", ""), blob, j.get("url", ""),
                            "Remotive", j.get("candidate_required_location", ""),
-                           j.get("salary", "")))
+                           j.get("salary", ""), job_type=jt))
     return out
 
 
-def from_greenhouse(token):
+def from_wwr(mode="contract"):
+    """We Work Remotely RSS -- agencies and marketplaces post contract reqs
+    here heavily, and it has no public JSON API, just RSS. Titles are
+    "Company: Position"; split on the first colon."""
+    out = []
+    for feed_url in WWR_FEEDS:
+        try:
+            xml_text = get(feed_url)
+            root = ET.fromstring(xml_text)
+        except Exception:
+            continue
+        for item in root.findall(".//item"):
+            raw_title = (item.findtext("title") or "").strip()
+            company, _, title = raw_title.partition(":")
+            title = title.strip() or raw_title
+            company = company.strip() if _ else ""
+            desc = strip_html(item.findtext("description") or "")
+            region = item.findtext("region") or ""
+            link = item.findtext("link") or ""
+            if coarse_match(title, desc, mode):
+                out.append(rec(title, company or "Unknown", desc, link,
+                               "WeWorkRemotely", region))
+    return out
+
+
+def from_greenhouse(token, mode="fulltime"):
     out = []
     try:
         data = json.loads(get(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"))
@@ -323,13 +475,13 @@ def from_greenhouse(token):
         title = j.get("title", "")
         loc = (j.get("location") or {}).get("name", "")
         content = strip_html(urllib.parse.unquote(j.get("content", "")))
-        if "remote" in (loc + " " + content).lower() and coarse_match(title, content):
+        if "remote" in (loc + " " + content).lower() and coarse_match(title, content, mode, title_only=(mode == "contract")):
             out.append(rec(title, token.title(), content, j.get("absolute_url", ""),
                            "Greenhouse", loc))
     return out
 
 
-def from_ashby(name):
+def from_ashby(name, mode="fulltime"):
     out = []
     try:
         data = json.loads(get("https://api.ashbyhq.com/posting-api/job-board/"
@@ -342,13 +494,13 @@ def from_ashby(name):
         if not (j.get("isRemote") or "remote" in loc.lower()):
             continue
         desc = j.get("descriptionPlain") or strip_html(j.get("descriptionHtml", ""))
-        if coarse_match(title, desc):
+        if coarse_match(title, desc, mode, title_only=(mode == "contract")):
             out.append(rec(title, name, desc, j.get("applyUrl") or j.get("jobUrl", ""),
                            "Ashby", loc, json.dumps(j.get("compensation") or {})))
     return out
 
 
-def from_lever(token):
+def from_lever(token, mode="fulltime"):
     out = []
     try:
         data = json.loads(get(f"https://api.lever.co/v0/postings/{token}?mode=json"))
@@ -359,19 +511,29 @@ def from_lever(token):
         cats = j.get("categories") or {}
         loc = cats.get("location", "")
         desc = j.get("descriptionPlain", "")
-        if "remote" in (loc + " " + desc).lower() and coarse_match(title, desc):
+        if "remote" in (loc + " " + desc).lower() and coarse_match(title, desc, mode, title_only=(mode == "contract")):
             out.append(rec(title, token.title(), desc, j.get("hostedUrl", ""),
                            "Lever", loc, json.dumps(j.get("salaryRange") or {})))
     return out
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["fulltime", "contract"], default="fulltime",
+                         help="fulltime (default, unchanged behavior) or contract "
+                              "(relaxes seniority, requires contract/1099 language, "
+                              "adds We Work Remotely)")
+    args = parser.parse_args()
+    mode = args.mode
+
     jobs = []
     with ThreadPoolExecutor(max_workers=32) as ex:
-        futs = [ex.submit(from_remoteok), ex.submit(from_remotive)]
-        futs += [ex.submit(from_greenhouse, t) for t in GREENHOUSE]
-        futs += [ex.submit(from_ashby, n) for n in ASHBY]
-        futs += [ex.submit(from_lever, t) for t in LEVER]
+        futs = [ex.submit(from_remoteok, mode), ex.submit(from_remotive, mode)]
+        futs += [ex.submit(from_greenhouse, t, mode) for t in GREENHOUSE]
+        futs += [ex.submit(from_ashby, n, mode) for n in ASHBY]
+        futs += [ex.submit(from_lever, t, mode) for t in LEVER]
+        if mode == "contract":
+            futs.append(ex.submit(from_wwr, mode))
         for f in as_completed(futs):
             try:
                 jobs.extend(f.result())
@@ -391,18 +553,19 @@ def main():
     uniq = [j for j in uniq if not is_applied(j["company"], toks)]
     uniq.sort(key=lambda x: (-(x["salary"] or 0), x["company"]))
 
-    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "job_candidates.json")
+    out_name = "job_candidates.json" if mode == "fulltime" else "job_candidates_contract.json"
+    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), out_name)
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(uniq, fh, indent=2)
 
     by_src = {}
     for j in uniq:
         by_src[j["source"]] = by_src.get(j["source"], 0) + 1
-    print(f"Gathered {len(uniq)} coarse-matched candidates (after exclusions) by source: {by_src}")
-    print(f"With disclosed salary: {sum(1 for j in uniq if j['salary'])}")
+    print(f"[{mode}] Gathered {len(uniq)} coarse-matched candidates (after exclusions) by source: {by_src}")
+    print(f"With disclosed salary/rate: {sum(1 for j in uniq if j['salary'])}")
     print(f"Excluded (already applied): {', '.join(excluded) if excluded else 'none'}")
     print(f"JSON written to: {out_path}")
-    print("Next: Claude reads job_candidates.json and judges fit per record.")
+    print(f"Next: Claude reads {out_name} and judges fit per record.")
 
 
 if __name__ == "__main__":

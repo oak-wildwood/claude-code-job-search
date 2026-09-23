@@ -1,4 +1,7 @@
 config.json
 job_candidates.json
+job_candidates_contract.json
+job_candidates_prefiltered.json
+job_candidates_contract_prefiltered.json
 __pycache__/
 *.pyc
