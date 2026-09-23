@@ -1,6 +1,6 @@
 # claude-code-job-search
 
-Based on [Tom Colarusso's claude-code-job-search](https://github.com/Yodablues/claude-code-job-search) (MIT), extended with a contract/1099 search mode, a Markdown+PDF resume-cover pipeline, and assorted fixes. See `LICENSE` for the original copyright notice.
+Based on [Tom Colarusso's claude-code-job-search](https://github.com/Yodablues/claude-code-job-search) (MIT), extended with a contract/1099 search mode, a Markdown+PDF resume-cover pipeline, and assorted fixes. See `LICENSE` for copyright details.
 
 A [Claude Code](https://claude.ai/code) skill that finds remote software engineering jobs — full-time or contract — filters them against your resume and salary/rate requirements, and walks you through a triage workflow — all from your terminal.
 
