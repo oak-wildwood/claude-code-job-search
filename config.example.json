@@ -43,6 +43,12 @@
     ]
   },
 
+  "job_funnel": {
+    "cli": "/path/to/job-funnel/src/cli.ts",
+    "node": "node",
+    "to_apply_url": "http://localhost:8766/to-apply"
+  },
+
   "search_keywords": {
     "seniority": ["senior", "staff", "principal", "lead", "sr.", "sr "],
     "role": ["engineer", "developer", "swe", "software"],
