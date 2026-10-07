@@ -144,7 +144,8 @@ contains their details, or ask them directly for:
 
 ## job-funnel backend (optional)
 
-Only when `config.json` has a `job_funnel` section (`cli`, `node`, `to_apply_url`).
+Only when `config.json` has a `job_funnel` section (`cli`, `node`, `to_apply_url`);
+`config.example.json` deliberately has none, so the backend is opt-in.
 **Without that section, ignore this whole section: the skill behaves as described
 above.** job-funnel is a local job-search funnel tracker with a CLI and a web UI.
 
@@ -168,8 +169,9 @@ Steps (run after the pre-filter; use the contract filenames in contract mode):
 4. **Judge** the filtered file as in workflow step 3, then **record details** for
    each shortlisted posting:
    `funnel record surfaced --url '<url>' --employer '<company>' --title '<title>' --note '<one-phrase why it fits>' --pay '<pay as shown>' --snippet '<short description excerpt>'`
-   adding `--lane contract` in contract mode. Use single quotes around values
-   containing `$` (`'$180k'`, not `"$180k"`, which the shell expands).
+   adding `--lane contract` in contract mode. Single quotes keep the shell from
+   expanding `$` (`'$180k'`, not `"$180k"`), so write any `'` inside a value as
+   `'\''` (e.g. `--snippet 'We'\''re hiring'`); snippets often contain one.
 5. **End at the page.** By default, finish with one line and no one-by-one triage,
    e.g. `9 new postings on the To Apply page: <to_apply_url>`. This replaces
    workflow steps 4-5 (the long terminal shortlist and triage).

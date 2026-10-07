@@ -48,7 +48,7 @@ Both of the last two are kept for users without job-funnel and are skipped when 
 
 ### Optional: job-funnel backend
 
-job-funnel is a local job-search funnel tracker with a CLI and a web UI. If you use it, copy `config.example.json` to the git-ignored `config.json` (in this skill's directory) and add:
+job-funnel is a local job-search funnel tracker with a CLI and a web UI. It is opt-in: `config.example.json` leaves it out on purpose, so copying the example never turns it on. If you use it, add this section to your git-ignored `config.json` (in this skill's directory):
 
 ```json
 "job_funnel": {
@@ -58,7 +58,7 @@ job-funnel is a local job-search funnel tracker with a CLI and a web UI. If you 
 }
 ```
 
-- `cli` is the job-funnel CLI to run. Point it at a pinned checkout, such as the one job-funnel's serve agent runs from, rather than a working tree, so unmerged branches never touch real data.
+- `cli` is the job-funnel CLI to run, as an absolute path (`~` is not expanded). Point it at a pinned checkout, such as the one job-funnel's serve agent runs from, rather than a working tree, so unmerged branches never touch real data.
 - `node` is the Node executable.
 - `to_apply_url` is where the To Apply page is served.
 
