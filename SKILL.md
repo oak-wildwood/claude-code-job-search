@@ -78,10 +78,13 @@ contains their details, or ask them directly for:
    contract lane).
    It writes `job_candidates.json` (fulltime) or `job_candidates_contract.json`
    (contract) — coarse keyword matches + description snippets + salary/rate +
-   links. This stage is dumb on purpose. It also auto-excludes companies
-   with tailored docs already on disk (see `APPLIED_DIR`/`applied_tokens()` in
-   `find_jobs.py`) -- but that only catches roles a resume/cover letter was actually
-   generated for. Cross-check the applications tracker (step 3) for the rest.
+   links. This stage is dumb on purpose. Without `job_funnel` configured, it also
+   auto-excludes companies with tailored docs already on disk (see
+   `APPLIED_DIR`/`applied_tokens()` in `find_jobs.py`) -- but that only catches
+   roles a resume/cover letter was actually generated for. Cross-check the
+   applications tracker (step 3) for the rest. With `job_funnel` configured, the
+   script skips that folder scan and `MANUAL_APPLIED`; job-funnel's filter
+   (step 2b) covers them.
 2. **Pre-filter.** Run `python "<this skill dir>/prefilter.py"` (pass the mode's
    in/out filenames explicitly for contract, e.g. `prefilter.py
    job_candidates_contract.json job_candidates_contract_prefiltered.json`) to
@@ -89,13 +92,16 @@ contains their details, or ask them directly for:
    director/manager/architect/tech lead/etc.), enforces the salary floor
    (undisclosed kept as plausible), dedupes by (company, title). This is still
    dumb-on-purpose volume reduction, not judging.
+   **2b. Filter (only if `config.json` has a `job_funnel` section; otherwise skip
+   this step and follow the no-job-funnel flow).** See "job-funnel backend" below.
 3. **Judge (this is the real value).** Read the prefiltered file. For
    each record, read the snippet and decide true fit against the user's profile +
-   hard requirements. First, read the applications tracker (its path is in
+   hard requirements. Without `job_funnel`: first, read the applications tracker (its path is in
    `resume/applied_docs_dir` in `config.json`) and exclude anything already decided
    there (applied/rejected/passed) -- path is `resume.applications_tracker_path`
    in `config.json`. Don't rely solely on the gather stage's file-based
-   auto-exclusion, it's not exhaustive. **Aggressively drop garbage:**
+   auto-exclusion, it's not exhaustive. With `job_funnel`, the filter step has
+   already removed handled postings; skip the tracker read. **Aggressively drop garbage:**
    wrong level, non-remote, obvious stack mismatch (e.g. pure mobile/ML/embedded/
    Salesforce), duplicates, sub-minimum-salary/rate when disclosed, and anything
    matching the user's standing exclusions (see profile/config for team- or
@@ -114,7 +120,8 @@ contains their details, or ask them directly for:
    Rank by fit strength. Note any caveats (stack stretch, scope stretch, eligibility
    unclear). If the snippet is too thin to judge, fetch the full JD (Greenhouse/Ashby/
    Lever API or WebFetch) before deciding.
-5. **Triage one-by-one.** Go through the shortlist with the user. For each: **apply**
+5. **Triage one-by-one** (without `job_funnel`; with it, see "job-funnel backend"
+   below). Go through the shortlist with the user. For each: **apply**
    or **reject**. Keep it quick. Log every decision in the applications tracker
    (date, company, role, salary, status, link, notes) -- this is what step 3's
    cross-check depends on for roles that never get tailored docs generated.
@@ -135,6 +142,48 @@ contains their details, or ask them directly for:
    the schema mapping, and all iterative edits after the first draft. Judging (step 3)
    stays on the session model.
 
+## job-funnel backend (optional)
+
+Only when `config.json` has a `job_funnel` section (`cli`, `node`, `to_apply_url`);
+`config.example.json` deliberately has none, so the backend is opt-in.
+**Without that section, ignore this whole section: the skill behaves as described
+above.** job-funnel is a local job-search funnel tracker with a CLI and a web UI.
+
+Each Bash call is a fresh shell, so define a helper inside every call that uses it:
+
+```bash
+funnel() { '<node>' '<cli>' "$@"; }   # values from config.json job_funnel
+```
+
+Steps (run after the pre-filter; use the contract filenames in contract mode):
+
+1. **Filter, don't import.** `funnel filter <prefiltered.json> <prefiltered.json>`
+   (in place). There is no backup-import step: job-funnel keeps its application
+   data current itself.
+2. **Read the freshness line.** `filter` prints one line after its summary giving
+   the date of the newest application entry it knows (or that there are none).
+   Ask the user only if that date looks older than their most recent application,
+   since applied postings could then look new.
+3. **Stop on failure.** If `filter` exits non-zero or the output file is missing,
+   stop and tell the user. Never show an unfiltered list.
+4. **Judge** the filtered file as in workflow step 3, then **record details** for
+   each shortlisted posting:
+   `funnel record surfaced --url '<url>' --employer '<company>' --title '<title>' --note '<one-phrase why it fits>' --pay '<pay as shown>' --snippet '<short description excerpt>'`
+   adding `--lane contract` in contract mode. Single quotes keep the shell from
+   expanding `$` (`'$180k'`, not `"$180k"`), so write any `'` inside a value as
+   `'\''` (e.g. `--snippet 'We'\''re hiring'`); snippets often contain one.
+5. **End at the page.** By default, finish with one line and no one-by-one triage,
+   e.g. `9 new postings on the To Apply page: <to_apply_url>`. This replaces
+   workflow steps 4-5 (the long terminal shortlist and triage).
+6. **Optional chat triage** (only if the user asks, e.g. "triage with me"): the
+   one-by-one flow, where each decision writes the same records the page would:
+   - **Pass:** `funnel record passed …`
+   - **Pass Company:** `funnel block "<Company>"`, then `funnel record passed …`
+   - **Save:** `funnel record saved …`
+   - **Apply:** record nothing. The user logs applications in their own
+     application log, which job-funnel reads. Never draft, suggest or fill in an
+     entry in that log. Then continue with workflow step 6 (`/resume-cover`).
+
 ## Configuration
 
 Edit the CONFIG section at the top of `find_jobs.py` to customize:
@@ -143,8 +192,9 @@ Edit the CONFIG section at the top of `find_jobs.py` to customize:
 - `CONTRACT_TERMS` — coarse keyword filter that replaces `SENIORITY` in contract mode
 - `WWR_FEEDS` — We Work Remotely RSS category URLs queried in contract mode
 - `GREENHOUSE`, `ASHBY`, `LEVER` — company ATS tokens (unknown tokens are skipped safely; used in both modes)
-- `MANUAL_APPLIED` — set of company name tokens to exclude (already applied)
-- `APPLIED_DIR` — directory to scan for tailored resume/cover letter docs (auto-exclusion)
+- `MANUAL_APPLIED` — set of company name tokens to exclude (already applied); skipped when `job_funnel` is configured
+- `APPLIED_DIR` — directory to scan for tailored resume/cover letter docs (auto-exclusion); skipped when `job_funnel` is configured
+- `job_funnel` (in `config.json`, optional) — enables the job-funnel backend above
 
 ## Notes / maintenance
 

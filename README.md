@@ -14,7 +14,7 @@ It queries public job APIs (RemoteOK, Remotive, Greenhouse, Ashby, Lever, and �
 - **Automated sourcing** from 200+ company ATS feeds + RemoteOK + Remotive (+ We Work Remotely in contract mode), parallelized
 - **Coarse pre-filter** by seniority (or contract language), role type, tech stack, and remote status
 - **Claude-powered fit scoring** against your actual profile (not just keyword matching)
-- **Already-applied detection** — skips companies you've already applied to (via tailored resume files on disk or a manual exclusion list)
+- **Already-applied detection** — skips companies you've already applied to (via tailored resume files on disk or a manual exclusion list), or, with the optional job-funnel backend, via its filter and company blocklist
 - **Not covered:** pure W-2 staffing agencies (Kforce, TEKsystems, Insight Global, Robert Half, Dexian) and vetted marketplaces (Braintrust, Toptal) have no public feed to query — those stay a manual registration step.
 
 ### `/resume-cover` — Tailored resume & cover letter
@@ -43,6 +43,35 @@ Edit the CONFIG section at the top of `find_jobs.py`:
 - `GREENHOUSE`, `ASHBY`, `LEVER` — company ATS tokens (200+ included, add more freely — unknown tokens are skipped; used in both modes)
 - `MANUAL_APPLIED` — set of company name tokens to exclude (already applied)
 - `APPLIED_DIR` — directory to scan for tailored resume/cover letter files (auto-exclusion)
+
+Both of the last two are kept for users without job-funnel and are skipped when `config.json` has a `job_funnel` section.
+
+### Optional: job-funnel backend
+
+job-funnel is a local job-search funnel tracker with a CLI and a web UI. It is opt-in: `config.example.json` leaves it out on purpose, so copying the example never turns it on. If you use it, add this section to your git-ignored `config.json` (in this skill's directory):
+
+```json
+"job_funnel": {
+  "cli": "/path/to/job-funnel/src/cli.ts",
+  "node": "node",
+  "to_apply_url": "http://localhost:8766/to-apply"
+}
+```
+
+- `cli` is the job-funnel CLI to run, as an absolute path (`~` is not expanded). Point it at a pinned checkout, such as the one job-funnel's serve agent runs from, rather than a working tree, so unmerged branches never touch real data.
+- `node` is the Node executable.
+- `to_apply_url` is where the To Apply page is served.
+
+With this section present, a run:
+1. filters the pre-filtered postings through job-funnel's `filter` (dropping ones already applied or passed; no backup import is needed) and stops if it fails, rather than showing an unfiltered list;
+2. records each shortlisted posting with its note, pay and snippet (`record surfaced`);
+3. ends with one line pointing at the To Apply page instead of a long terminal triage.
+
+Say "triage with me" for the one-by-one chat flow: Pass, Pass Company (blocks the company), and Save write the same records the page would; Apply records nothing, since you log applications in your own application log, which job-funnel reads.
+
+Claude defines `funnel` as a shell function inside each Bash call (e.g. `funnel() { node /path/to/cli.ts "$@"; }`), because each call is a fresh shell.
+
+**Without a `job_funnel` section, nothing changes.**
 
 ### Resume & cover letter setup
 

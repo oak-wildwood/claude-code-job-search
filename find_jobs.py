@@ -255,7 +255,9 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
       "Accept": "application/json,text/plain,*/*"}
 TIMEOUT = 20
 RETRIES = 3                # retry transient failures / rate limits with backoff
-# Companies manually marked as already applied (add your own)
+# Companies manually marked as already applied (add your own). Only used when
+# config.json has no job_funnel section; with job-funnel, its filter and company
+# blocklist cover this, so this set is skipped.
 MANUAL_APPLIED = set()
 
 
@@ -271,9 +273,15 @@ def _load_local_config():
         return {}
 
 
-_resume_cfg = _load_local_config().get("resume", {})
+_local_cfg = _load_local_config()
+_resume_cfg = _local_cfg.get("resume", {})
+# Optional job-funnel backend: when configured, its `filter` step (applied and passed
+# postings) and company blocklist replace the folder scan and MANUAL_APPLIED below.
+# Users without a job_funnel section keep both exactly as before.
+JOB_FUNNEL = bool(_local_cfg.get("job_funnel"))
 # Directory scanned to auto-exclude companies already applied to (tailored docs present).
 # From config.json's resume.applied_docs_dir; empty disables the auto-exclusion.
+# Skipped when job_funnel is configured.
 APPLIED_DIR = _resume_cfg.get("applied_docs_dir", "")
 
 
@@ -312,8 +320,11 @@ def _norm(s):
 
 
 def applied_tokens():
-    """Company tokens from tailored docs in APPLIED_DIR, to skip already-applied roles."""
+    """Company tokens from tailored docs in APPLIED_DIR, to skip already-applied roles.
+    Empty when job_funnel is configured (its filter/blocklist handle this instead)."""
     toks = set()
+    if JOB_FUNNEL:
+        return toks
     try:
         for fn in os.listdir(APPLIED_DIR):
             for rx in _APPLIED_REGEXES:
