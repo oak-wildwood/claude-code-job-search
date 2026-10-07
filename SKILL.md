@@ -123,6 +123,18 @@ contains their details, or ask them directly for:
    fabricate skills; surface real gaps and flag anything that needs the user's
    confirmation.
 
+   **Model routing for the cover letter prose:** don't draft the letter inline on the
+   session model. Gather the real story facts from the user first (ask, don't guess), fetch
+   the JD text, then hand the first draft to a fresh Opus subagent (Agent tool,
+   `subagent_type: general-purpose`, `model: opus`; forks inherit the session model, so
+   they won't do). Brief it with the JD text, the candidate facts (no embellishment),
+   any voice rules the user has given (from memory or config), and any complaints
+   about earlier drafts. In the JSON schema example, use the schema's real `signoff`
+   value ("Thank you for your consideration.") or omit it, never the name; the generator
+   appends "Sincerely," plus the full name itself. The session model keeps the JD fetch,
+   the schema mapping, and all iterative edits after the first draft. Judging (step 3)
+   stays on the session model.
+
 ## Configuration
 
 Edit the CONFIG section at the top of `find_jobs.py` to customize:

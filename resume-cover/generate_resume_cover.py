@@ -68,6 +68,10 @@ cover_letter_tailored.json:
         {
             "bold_lead": "Frontend platform leadership at scale. ",
             "text": "Rest of the paragraph..."
+        },
+        {
+            "bold_lead": "",
+            "text": "A plain paragraph with no bold lead-in -- use this liberally. Making every paragraph open with a bolded hook is a template tell; vary it."
         }
     ],
     "closing": "Closing paragraph text...",
@@ -215,7 +219,8 @@ def build_cover_markdown(data, cfg):
     lines += [data["recipient"], "", data["opening"], ""]
 
     for sec in data["body_sections"]:
-        lines.append(f"**{sec['bold_lead']}**{sec['text']}")
+        lead = sec.get("bold_lead", "")
+        lines.append(f"**{lead}**{sec['text']}" if lead else sec["text"])
         lines.append("")
 
     lines += [data["closing"], "", data["signoff"], "", "Sincerely,", "", f"**{cfg['name']}**"]
@@ -238,7 +243,11 @@ def build_cover_html(data, cfg):
     parts.append(f"<p>{esc(data['opening'])}</p>")
 
     for sec in data["body_sections"]:
-        parts.append(f"<p><span class='lead'>{esc(sec['bold_lead'])}</span>{esc(sec['text'])}</p>")
+        lead = sec.get("bold_lead", "")
+        if lead:
+            parts.append(f"<p><span class='lead'>{esc(lead)}</span>{esc(sec['text'])}</p>")
+        else:
+            parts.append(f"<p>{esc(sec['text'])}</p>")
 
     parts.append(f"<p>{esc(data['closing'])}</p>")
     parts.append(f"<p>{esc(data['signoff'])}</p>")

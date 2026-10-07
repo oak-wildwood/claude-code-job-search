@@ -12,19 +12,22 @@ Two modes, picked with --mode:
   contract — engineering role + relevant tech + remote + contract/1099/C2C
     language, seniority NOT required (contract reqs are often titled flatly,
     e.g. "Contract Frontend Developer"). Adds We Work Remotely (agencies post
-    contract reqs there heavily) and filters Remotive/RemoteOK by their native
-    job-type/tag fields in addition to text. Writes job_candidates_contract.json
-    so a contract gather never clobbers a fulltime one (and vice versa).
+    contract reqs there heavily) and Himalayas (public search API, no auth,
+    filters server-side on employment_type=Contractor + country=US) and
+    filters Remotive/RemoteOK/Himalayas by their native job-type/tag fields
+    in addition to text. Writes job_candidates_contract.json so a contract
+    gather never clobbers a fulltime one (and vice versa).
 
 Output: writes the mode's JSON file (full records w/ snippets) next to this
 script and prints a short summary. No third-party deps (urllib + stdlib xml only).
 Edit CONFIG to tune criteria or add companies (unknown ATS tokens are skipped).
 
 Not covered here: pure W-2 staffing agencies (Kforce, TEKsystems, Insight
-Global, Robert Half, Dexian) and vetted marketplaces (Braintrust, Toptal).
-None expose a public feed — Braintrust's own job list is gated behind
-"Certified Talent" membership, not a public board. Those are a manual
-registration/application step, not something this script can gather.
+Global, Robert Half, Dexian) and vetted marketplaces (Braintrust, Toptal,
+A.Team, Gun.io). None expose a public feed -- Braintrust's own job list is
+gated behind "Certified Talent" membership, not a public board; A.Team and
+Gun.io are apply-and-wait networks with no browsable board either. Those are
+a manual registration/application step, not something this script can gather.
 """
 
 import argparse
@@ -59,11 +62,30 @@ CONTRACT_TERMS = ["contract", "contractor", "contract-to-hire", "c2h", "1099",
 # fixed. Still used for body-context matching, where they're one signal
 # among many rather than the sole match.
 CONTRACT_TITLE_TERMS = [t for t in CONTRACT_TERMS if t not in ("consultant", "consulting")]
+# Bare "contract"/"contractor" are dropped for BODY matching (WWR/RemoteOK/
+# Remotive) -- live-tested 2026-09-23: on real postings these words show up
+# constantly describing the *business*, not the job's employment type
+# ("roofing contractors" as the customer base, "contract manufacturer" as the
+# company's own business type, "contractor referral marketplace" as the
+# product, "contractors never handle production data" as a security policy).
+# 3 of 4 real WWR gather hits in one test run were this exact false positive.
+# Replaced with more specific phrases that don't collide with ordinary business
+# language. Kept for TITLE matching, where "(Contract)" in a title is precise.
+CONTRACT_BODY_TERMS = [t for t in CONTRACT_TERMS if t not in ("contract", "contractor")] + [
+    "contract-based", "contract based", "contract position", "contract role",
+    "contract engagement", "on a contract basis", "contract job", "hourly contract",
+]
 WWR_FEEDS = [
     "https://weworkremotely.com/categories/remote-programming-jobs.rss",
     "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
     "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
 ]
+# Himalayas' public search API has no auth and takes employment_type/country
+# as real server-side filters (verified 2026-09-24), unlike RemoteOK/Remotive
+# which only offer text/tag signal for "contract". One query per keyword since
+# the API has no OR-of-terms search; keep this list narrow to the user's
+# actual stack rather than mirroring the broad TECH list above.
+HIMALAYAS_QUERIES = ["vue", "react", "typescript", "angular", "frontend", "node"]
 
 GREENHOUSE = [
     # --- original ---
@@ -360,15 +382,17 @@ def coarse_match(title, blob, mode="fulltime", title_only=False):
     titled ".../Employee-and-Contractor-Privacy-Policy.pdf") or "temporary"
     (work authorization boilerplate), which swamped the few genuine hits.
     Employer-written titles don't carry that boilerplate, so title-only
-    matching is used there. Board/aggregator sources (RemoteOK, Remotive,
-    WWR) don't have this problem to the same degree and keep body matching."""
+    matching is used there. Board/aggregator sources (RemoteOK, Remotive, WWR)
+    keep body matching but with CONTRACT_BODY_TERMS, not the full list --
+    bare "contract"/"contractor" in a body has its own noise problem there
+    (see CONTRACT_BODY_TERMS's comment)."""
     tl = title.lower()
     if mode == "contract":
         title_hit = any(s in tl for s in CONTRACT_TITLE_TERMS)
         if title_only:
             marker_hit = title_hit
         else:
-            marker_hit = title_hit or any(s in blob.lower() for s in CONTRACT_TERMS)
+            marker_hit = title_hit or any(s in blob.lower() for s in CONTRACT_BODY_TERMS)
     else:
         marker_hit = any(s in tl for s in SENIORITY)
     return (marker_hit
@@ -465,6 +489,48 @@ def from_wwr(mode="contract"):
     return out
 
 
+def from_himalayas(mode="contract"):
+    """Himalayas.app public search API -- no auth key, and unlike RemoteOK/
+    Remotive/WWR it takes employment_type + country as real server-side
+    filters rather than relying on us to infer them from text. That server
+    filter is layered ON TOP of coarse_match (same pattern as Remotive's
+    job_type check above), not a replacement for it -- still requires the
+    usual ROLE/TECH text signal in title+description.
+    Contract-only: fulltime mode has no server-side employment_type value
+    that cleanly maps (Himalayas' "Full-time" tier includes plenty of non-US
+    remote-anywhere postings we'd rather leave to the existing FT sources)."""
+    if mode != "contract":
+        return []
+    out, seen = [], set()
+    for q in HIMALAYAS_QUERIES:
+        url = ("https://himalayas.app/jobs/api/search?" + urllib.parse.urlencode({
+            "q": q, "employment_type": "Contractor", "country": "US",
+            "sort": "recent", "limit": 20,
+        }))
+        try:
+            data = json.loads(get(url))
+        except Exception:
+            continue
+        for j in data.get("jobs", []):
+            guid = j.get("guid") or j.get("applicationLink") or ""
+            if not guid or guid in seen:
+                continue
+            seen.add(guid)
+            title = j.get("title", "")
+            desc = strip_html(j.get("description") or j.get("excerpt") or "")
+            mn, mx = j.get("minSalary"), j.get("maxSalary")
+            period = (j.get("salaryPeriod") or "annual").lower()
+            salary_text = ""
+            if mn or mx:
+                val = mx or mn
+                salary_text = f"${val}/hr" if period == "hourly" else f"${val}"
+            if coarse_match(title, desc, mode):
+                out.append(rec(title, j.get("companyName", ""), desc,
+                               j.get("applicationLink", ""), "Himalayas",
+                               "Remote (US eligible)", salary_text))
+    return out
+
+
 def from_greenhouse(token, mode="fulltime"):
     out = []
     try:
@@ -534,6 +600,7 @@ def main():
         futs += [ex.submit(from_lever, t, mode) for t in LEVER]
         if mode == "contract":
             futs.append(ex.submit(from_wwr, mode))
+            futs.append(ex.submit(from_himalayas, mode))
         for f in as_completed(futs):
             try:
                 jobs.extend(f.result())
