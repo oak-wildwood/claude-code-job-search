@@ -65,7 +65,10 @@ contains their details, or ask them directly for:
    and ineligible-location roles (flag any where eligibility is unclear).
 3. **Appropriate level** engineering role that genuinely uses the user's stack
    (in contract mode: appropriate scope/seniority for the work itself, since
-   contract titles rarely state a level).
+   contract titles rarely state a level). If `profile.fullstack_policy` is set
+   in `config.json`, apply it: it defines which fullstack/backend combinations
+   count as a fit (e.g. any backend is fine as long as the frontend is the
+   user's framework).
 4. **Standing exclusions.** Check `profile.standing_exclusions` in `config.json`
    for team/domain types the user has explicitly ruled out (not a fit judgment,
    a preference) -- exclude or prominently flag these rather than quietly

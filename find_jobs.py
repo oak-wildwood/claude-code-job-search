@@ -43,8 +43,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ----------------------------- CONFIG ---------------------------------------
 SENIORITY = ["senior", "staff", "principal", "lead", "sr.", "sr ", "distinguished"]
 ROLE = ["engineer", "developer", "swe", "software"]
-TECH = ["vue", "react", "typescript", "javascript", "full stack", "fullstack",
-        "full-stack", "front-end", "frontend", "node", "python"]
+TECH = ["vue", "angular", "react", "typescript", "javascript", "full stack",
+        "fullstack", "full-stack", "front-end", "frontend", "node", "python"]
+# Deliberately no ".net"/"c#" here: a .NET-only posting isn't a fit, and
+# .NET + Vue/Angular shops already match via "vue"/"angular" above. The
+# "any backend is fine as long as the frontend is Vue/Angular" rule is
+# enforced at the judge step (profile.fullstack_policy in config.json).
 US_HINTS = ["us", "usa", "u.s", "united states", "anywhere", "worldwide",
             "north america", "remote"]
 # contract mode: replaces the SENIORITY requirement (title/desc must show
@@ -85,7 +89,8 @@ WWR_FEEDS = [
 # which only offer text/tag signal for "contract". One query per keyword since
 # the API has no OR-of-terms search; keep this list narrow to the user's
 # actual stack rather than mirroring the broad TECH list above.
-HIMALAYAS_QUERIES = ["vue", "react", "typescript", "angular", "frontend", "node"]
+HIMALAYAS_QUERIES = ["vue", "react", "typescript", "angular", "frontend", "node",
+                     "fullstack", ".net"]
 
 GREENHOUSE = [
     # --- original ---
