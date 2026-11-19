@@ -179,7 +179,9 @@ Lever API, or WebFetch) before dropping.
    Lead with what pulled the score down (a caveat) when there is one, then the
    strongest fit fact; tag inferred facts `(est)`; keep it under about 70
    characters. Never name a contact; "network: close" is the most it says.
-   This band line is the job-funnel `--note` (see below).
+   Without `judge_rubric` there are no bands: the line is a one-phrase reason it
+   fits, ranked by fit strength. Either way, this line is the job-funnel `--note`
+   (see below).
    In the terminal, show each as
    `<band line> | Title @ Company | $pay (or "salary unconfirmed") | link`.
    In contract mode, show `$rate/hr` when `rate_hourly` is set instead of the
@@ -232,8 +234,8 @@ Steps (run after the pre-filter; use the contract filenames in contract mode):
 3. **Stop on failure.** If `filter` exits non-zero or the output file is missing,
    stop and tell the user. Never show an unfiltered list.
 4. **Judge** the filtered file as in workflow step 3, then **record details** for
-   each shortlisted posting (bands A-C; D is never recorded):
-   `funnel record surfaced --url '<url>' --employer '<company>' --title '<title>' --note '<band line from workflow step 4>' --pay '<pay as shown>' --snippet '<short description excerpt>'`
+   each shortlisted posting (with `judge_rubric`, bands A-C only; D is never recorded):
+   `funnel record surfaced --url '<url>' --employer '<company>' --title '<title>' --note '<the line from workflow step 4>' --pay '<pay as shown>' --snippet '<short description excerpt>'`
    adding `--lane contract` in contract mode. Single quotes keep the shell from
    expanding `$` (`'$180k'`, not `"$180k"`), so write any `'` inside a value as
    `'\''` (e.g. `--snippet 'We'\''re hiring'`); snippets often contain one.
