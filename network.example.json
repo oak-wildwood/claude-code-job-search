@@ -1,0 +1,7 @@
+{
+  "_note": "Copy to network.local.json (gitignored) and list companies where you know someone. Company names and closeness only; keep who the contact is somewhere private. closeness: close (would refer or vouch) | loose (would answer a message). A company not listed scores as cold.",
+  "companies": [
+    {"company": "Example Corp", "aliases": ["Example"], "closeness": "close"},
+    {"company": "Sample Labs", "closeness": "loose"}
+  ]
+}

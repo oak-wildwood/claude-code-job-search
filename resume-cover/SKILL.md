@@ -71,13 +71,20 @@ Before first use, create a `config.json` in this skill's directory:
      in `../config.json` before writing any "N years of X experience" claim. Total
      career years and frontend-specific years are NOT the same number here.
 
-6. **Write the cover letter.** Structure:
-   - Opening: specific interest in the role and company, 1-sentence positioning
-   - 2-3 body paragraphs with bold lead-in phrases, each mapping a key requirement
-     to concrete experience
-   - If there's a notable gap, address it head-on with a confident reframe
-   - Closing: why this company/role specifically, invitation to discuss
-   - Tone: confident, specific, not sycophantic. Show don't tell.
+6. **Write the cover letter.** Short, direct, and in the user's own voice. Follow any
+   voice rules the user has given (memory or config) over this outline.
+   - Opening: why this role and company, then the positioning line from
+     `profile.differentiators` in `../config.json` (the pitch), in plain words.
+   - Body: pick the one or two proofs from `profile.differentiators` that match what
+     the posting actually asks for, not all of them. Lead with outcomes, and keep
+     rollout play-by-play for interviews. Vary paragraph length and shape. No bold
+     lead-ins, and no identical paragraph structure.
+   - Gaps: state them plainly, next to a related strength. Don't stage an "honest
+     part" or narrate that you're being candid.
+   - Closing: short and plain. No crafted callback.
+   - Facts: only claims that are in the source resume or that the user confirmed. If
+     the user keeps a list of claims to avoid or reword (memory or the vault's
+     positioning note), apply it. When a detail would help, ask for the real one.
 
 7. **Generate the files.** Write `cover_letter_tailored.json` (structured cover
    letter data) to the output directory -- and `resume_tailored.json` too, but

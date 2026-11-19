@@ -7,7 +7,7 @@ and Claude's judge step. Drops over-level titles, enforces the salary floor
 Usage:
     python3 prefilter.py [in_path] [out_path] [--min-salary N]
 Defaults: in_path=job_candidates.json, out_path=job_candidates_prefiltered.json,
-min-salary=200000, both resolved relative to this script's directory.
+min-salary=175000, both resolved relative to this script's directory.
 """
 
 import argparse
@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 OVER_LEVEL_TERMS = [
-    "staff", "principal", "distinguished", "director", "vp ", "head of",
+    "principal", "distinguished", "director", "vp ", "head of",
     "manager", "architect", "tech lead", "technical lead", "lead engineer",
 ]
 
@@ -39,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("in_path", nargs="?", default=str(here / "job_candidates.json"))
     parser.add_argument("out_path", nargs="?", default=str(here / "job_candidates_prefiltered.json"))
-    parser.add_argument("--min-salary", type=int, default=200000)
+    parser.add_argument("--min-salary", type=int, default=175000)
     args = parser.parse_args()
 
     data = json.loads(Path(args.in_path).read_text(encoding="utf-8"))

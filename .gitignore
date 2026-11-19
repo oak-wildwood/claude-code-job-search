@@ -5,3 +5,7 @@ job_candidates_prefiltered.json
 job_candidates_contract_prefiltered.json
 __pycache__/
 *.pyc
+
+# Personal network list for the judge step; never commit
+network.local.json
+*.local.json
