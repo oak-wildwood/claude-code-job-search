@@ -31,6 +31,8 @@ a manual registration/application step, not something this script can gather.
 """
 
 import argparse
+import datetime
+import email.utils
 import json
 import os
 import re
@@ -421,8 +423,39 @@ def us_remote(text):
     return any(h in t for h in US_HINTS)
 
 
-def rec(title, company, desc, url, source, location, salary_text="", job_type=""):
+def to_date(v):
+    """A feed's date as YYYY-MM-DD, or None. Accepts ISO 8601 strings, RFC 822
+    (RSS pubDate) strings, and epoch seconds or milliseconds."""
+    if v in (None, ""):
+        return None
+    try:
+        if isinstance(v, (int, float)):
+            ts = v / 1000 if v > 1e11 else v
+            return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).date().isoformat()
+        v = str(v).strip()
+        if re.match(r"^\d{4}-\d{2}-\d{2}", v):
+            return v[:10]
+        return email.utils.parsedate_to_datetime(v).date().isoformat()
+    except Exception:
+        return None
+
+
+def age_days(d):
+    if not d:
+        return None
+    try:
+        return (datetime.date.today() - datetime.date.fromisoformat(d)).days
+    except ValueError:
+        return None
+
+
+def rec(title, company, desc, url, source, location, salary_text="", job_type="",
+        posted=None, updated=None):
+    """posted/updated are the feed's own dates (first published, last updated),
+    kept so the judge step scores freshness from data, not guesses. A posting
+    whose updated date is well after its posted date may be a repost."""
     blob = (salary_text or "") + " " + desc
+    posted, updated = to_date(posted), to_date(updated)
     return {
         "title": title, "company": company,
         "salary": extract_salary(blob),
@@ -431,6 +464,7 @@ def rec(title, company, desc, url, source, location, salary_text="", job_type=""
         "location": location or "Remote",
         "us": us_remote((location or "") + " " + desc[:400]),
         "url": url, "source": source,
+        "posted": posted, "updated": updated, "age_days": age_days(posted),
         "snippet": strip_html(desc)[:SNIPPET_LEN],
     }
 
@@ -452,7 +486,8 @@ def from_remoteok(mode="fulltime"):
         if coarse_match(title, blob, mode):
             out.append(rec(title, j.get("company", ""), blob,
                            j.get("url") or j.get("apply_url", ""), "RemoteOK",
-                           j.get("location") or "Remote"))
+                           j.get("location") or "Remote",
+                           posted=j.get("date") or j.get("epoch")))
     return out
 
 
@@ -476,7 +511,8 @@ def from_remotive(mode="fulltime"):
         if coarse_match(title, blob, mode):
             out.append(rec(title, j.get("company_name", ""), blob, j.get("url", ""),
                            "Remotive", j.get("candidate_required_location", ""),
-                           j.get("salary", ""), job_type=jt))
+                           j.get("salary", ""), job_type=jt,
+                           posted=j.get("publication_date")))
     return out
 
 
@@ -501,7 +537,8 @@ def from_wwr(mode="contract"):
             link = item.findtext("link") or ""
             if coarse_match(title, desc, mode):
                 out.append(rec(title, company or "Unknown", desc, link,
-                               "WeWorkRemotely", region))
+                               "WeWorkRemotely", region,
+                               posted=item.findtext("pubDate")))
     return out
 
 
@@ -543,7 +580,8 @@ def from_himalayas(mode="contract"):
             if coarse_match(title, desc, mode):
                 out.append(rec(title, j.get("companyName", ""), desc,
                                j.get("applicationLink", ""), "Himalayas",
-                               "Remote (US eligible)", salary_text))
+                               "Remote (US eligible)", salary_text,
+                               posted=j.get("pubDate")))
     return out
 
 
@@ -559,7 +597,8 @@ def from_greenhouse(token, mode="fulltime"):
         content = strip_html(urllib.parse.unquote(j.get("content", "")))
         if "remote" in (loc + " " + content).lower() and coarse_match(title, content, mode, title_only=(mode == "contract")):
             out.append(rec(title, token.title(), content, j.get("absolute_url", ""),
-                           "Greenhouse", loc))
+                           "Greenhouse", loc,
+                           posted=j.get("first_published"), updated=j.get("updated_at")))
     return out
 
 
@@ -578,7 +617,8 @@ def from_ashby(name, mode="fulltime"):
         desc = j.get("descriptionPlain") or strip_html(j.get("descriptionHtml", ""))
         if coarse_match(title, desc, mode, title_only=(mode == "contract")):
             out.append(rec(title, name, desc, j.get("applyUrl") or j.get("jobUrl", ""),
-                           "Ashby", loc, json.dumps(j.get("compensation") or {})))
+                           "Ashby", loc, json.dumps(j.get("compensation") or {}),
+                           posted=j.get("publishedAt"), updated=j.get("updatedAt")))
     return out
 
 
@@ -595,7 +635,8 @@ def from_lever(token, mode="fulltime"):
         desc = j.get("descriptionPlain", "")
         if "remote" in (loc + " " + desc).lower() and coarse_match(title, desc, mode, title_only=(mode == "contract")):
             out.append(rec(title, token.title(), desc, j.get("hostedUrl", ""),
-                           "Lever", loc, json.dumps(j.get("salaryRange") or {})))
+                           "Lever", loc, json.dumps(j.get("salaryRange") or {}),
+                           posted=j.get("createdAt"), updated=j.get("updatedAt")))
     return out
 
 

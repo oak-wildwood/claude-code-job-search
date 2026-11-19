@@ -22,6 +22,20 @@
     "keep_if_salary_undisclosed": true
   },
 
+  "judge_rubric": {
+    "_note": "Judge step 3 in SKILL.md. Gates drop a posting; the weighted mean of 1-5 dimension scores (sum of weight x score / 100) ranks the rest into bands. network_file is read relative to this skill's directory (copy network.example.json); a missing file scores network as unknown (3); a listed file with the company absent scores cold (1).",
+    "hard_gates": ["remote_us", "level_senior_staff_ic", "salary_max_ge_175k_or_undisclosed",
+                   "no_ads_team", "no_agency_spam_fulltime", "has_frontend_work"],
+    "dimensions": {
+      "frontend_fit": {"weight": 25}, "backend_fit": {"weight": 10}, "scope_fit": {"weight": 10},
+      "comp": {"weight": 15}, "freshness_legit": {"weight": 15}, "remote_durability": {"weight": 10},
+      "network": {"weight": 10}, "company_health": {"weight": 5}
+    },
+    "bands": {"A": 4.2, "B": 3.5, "C": 2.8},
+    "unknown_default": 3, "unknown_default_comp": 2, "max_est_for_A": 1,
+    "network_file": "network.local.json"
+  },
+
   "resume": {
     "master_resume_path": "",
     "applied_docs_dir": "",
