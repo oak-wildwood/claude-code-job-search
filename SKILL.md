@@ -141,6 +141,13 @@ Lever API, or WebFetch) before dropping.
    Use the gap levels (4, 2) only where the row names them; otherwise pick the
    nearer named level.
 
+   - **Stack from `stack`.** Records carry `stack`, the stack terms named anywhere in
+     the full JD (the snippet is cut short and is usually the company intro). Score
+     `frontend_fit` and `backend_fit` from it as read, not `est`: `vue` or `angular`
+     with no `react` is primary (5); with `react` it is alongside React (4) unless the
+     title or snippet says which leads; `react` alone is React primary (2); no frontend
+     term is unstated (3). A posting that names every term (a marketplace listing its
+     whole catalog) tells you nothing; judge it on the gates.
    - **Freshness from real dates.** Records carry `posted` (the feed's first-published
      date), `updated` and `age_days`; score from `age_days`. When `updated` is well
      after `posted` (Greenhouse `updated_at` vs `first_published`), or an Ashby

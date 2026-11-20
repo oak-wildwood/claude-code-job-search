@@ -98,20 +98,20 @@ GREENHOUSE = [
     # Every token answered with at least one job on 2026-11-19. A token that 404s is
     # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
     "adyen", "affirm", "airbnb", "airtable", "algolia", "anthropic", "asana",
-    "assemblyai", "attentive", "automatticcareers", "bitwarden", "block",
-    "braze", "brex", "buildkite", "calendly", "calm", "carta", "chime", "circleci",
-    "cloudflare", "cockroachlabs", "coinbase", "collibra", "comet", "contentful",
-    "coursera", "cribl", "cultureamp", "customerio", "dashlane", "databricks",
-    "datadog", "descope", "discord", "dropbox", "duolingo", "elastic", "endorlabs",
-    "faire", "fanaticsinc", "fastly", "figma", "fivetran", "gemini", "gitlab",
-    "grafanalabs", "greenhouse", "gusto", "harnessinc", "highnote", "honeycomb",
-    "hootsuite", "instacart", "intercom", "justworks", "labelbox", "later", "lattice",
+    "assemblyai", "attentive", "automatticcareers", "bitwarden", "block", "braze",
+    "brex", "buildkite", "calendly", "calm", "carta", "chime", "circleci", "cloudflare",
+    "cockroachlabs", "coinbase", "collibra", "comet", "contentful", "coursera", "cribl",
+    "cultureamp", "customerio", "dashlane", "databricks", "datadog", "descope",
+    "discord", "dropbox", "duolingo", "elastic", "endorlabs", "faire", "fanaticsinc",
+    "fastly", "figma", "fingerprint", "fivetran", "gemini", "gitlab", "grafanalabs",
+    "greenhouse", "gusto", "harnessinc", "highnote", "honeycomb", "hootsuite",
+    "instacart", "intercom", "justworks", "labelbox", "later", "lattice",
     "launchdarkly", "lithic", "mercury", "mixpanel", "mongodb", "narvar", "netlify",
     "newrelic", "ngrokinc", "offerup", "okta", "oscar", "pagerduty", "payoneer",
     "peloton", "pinterest", "planetscale", "ramp", "reddit", "remote", "robinhood",
-    "roblox", "samsara", "scaleai", "shein", "shipbobinc", "sigmacomputing",
+    "roblox", "samsara", "scaleai", "seatgeek", "shein", "shipbobinc", "sigmacomputing",
     "smartsheet", "stabilityai", "stockx", "storyblok", "stripe", "tailscale", "toast",
-    "togetherai", "treasuryprime", "twilio", "typeform", "udemy", "veracode",
+    "togetherai", "treasuryprime", "twilio", "typeform", "udemy", "unframe", "veracode",
     "veracyte", "vercel", "vonage", "wise", "wizinc", "zscaler",
 ]
 ASHBY = [
@@ -123,20 +123,21 @@ ASHBY = [
     "Deepgram", "docker", "Doppler", "Drata", "Dust", "ElevenLabs", "Fig",
     "frontcareers", "fullstory", "gamma", "Gray Swan AI", "handshake", "Harvey",
     "helpscout", "Hex", "Hightouch", "Infisical", "Inngest", "Knock", "LangChain",
-    "Lightdash", "lightspeedhq", "Linear", "LlamaIndex", "midjourney", "Mintlify",
-    "miro", "Modal", "moderntreasury", "motherduck", "mural", "Neon", "nerdwallet",
-    "Notion", "OneSchema", "OpenAI", "Oyster", "perplexity", "Pinecone", "Plaid",
-    "Plain", "Plane", "poolside", "poshmark", "PostHog", "Prefect", "Railway", "Ramp",
-    "Render", "Replit", "Resend", "roboflow", "runway", "sanity", "Secureframe",
-    "semgrep", "sentry", "snowflake", "snyk", "substack", "Supabase", "Svix",
-    "Synctera", "Temporal", "Tldraw", "triggerdev", "Unit", "Vanta", "vantage", "Warp",
-    "Weaviate", "webflow", "WorkOS", "writer", "WunderGraph", "zapier", "Zed",
+    "Lightdash", "lightspeedhq", "Linear", "litmus", "LlamaIndex", "midjourney",
+    "Mintlify", "miro", "Modal", "moderntreasury", "motherduck", "mural", "Neon",
+    "nerdwallet", "Notion", "OneSchema", "OpenAI", "Oyster", "perplexity", "Pinecone",
+    "Plaid", "Plain", "Plane", "poolside", "poshmark", "PostHog", "Prefect", "prelude",
+    "Railway", "Ramp", "Render", "Replit", "Resend", "roboflow", "runway", "sanity",
+    "Secureframe", "semgrep", "sentry", "snowflake", "snyk", "spruceid", "substack",
+    "Supabase", "Svix", "Synctera", "Temporal", "Tldraw", "triggerdev", "Unit", "Vanta",
+    "vantage", "Warp", "Weaviate", "webflow", "WorkOS", "writer", "WunderGraph",
+    "zapier", "Zed",
 ]
 LEVER = [
     # Every token answered with at least one job on 2026-11-19. A token that 404s is
     # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
-    "15five", "angellist", "brilliant", "fly", "gopuff", "immuta", "metabase", "ro",
-    "twingate", "veeva", "zilliz",
+    "15five", "aerostrat", "angellist", "brilliant", "fly", "gopuff", "immuta",
+    "metabase", "ro", "twingate", "veeva", "zilliz",
 ]
 
 # Display names for feed tokens that aren't the company's name as written (a board slug like
@@ -210,6 +211,13 @@ COMPANY_NAMES = {
     "zapier": "Zapier",
     "15five": "15Five",
     "angellist": "AngelList",
+    "aerostrat": "Aerostrat",
+    "unframe": "Unframe",
+    "seatgeek": "SeatGeek",
+    "fingerprint": "Fingerprint",
+    "prelude": "Prelude",
+    "litmus": "Litmus",
+    "spruceid": "SpruceID",
 }
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -415,6 +423,31 @@ def age_days(d):
         return None
 
 
+# Stack terms looked for in a posting's full description, before it is cut to SNIPPET_LEN.
+# The snippet is usually the company intro, so without this the judge can't see the stack
+# without fetching every JD. A mention, not a split: "vue" + "react" means both are named.
+STACK_TERMS = {
+    "vue": r"\bvue(?:\.?js)?\b|\bnuxt",
+    "angular": r"\bangular(?:js)?\b",
+    "react": r"\breact(?:\.?js)?\b|\bnext\.js\b",
+    "svelte": r"\bsvelte(?:kit)?\b",
+    "typescript": r"\btypescript\b",
+    "node": r"\bnode(?:\.?js)?\b",
+    "dotnet": r"\.net\b|\bc#|\basp\.net\b",
+    "java": r"\bjava\b(?!script)|\bspring boot\b|\bkotlin\b",
+    "python": r"\bpython\b|\bdjango\b|\bfastapi\b",
+    "go": r"\b[Gg]olang\b|\bGo\b(?= *(?:,|/|and|or|\)|services|microservices))",
+    "ruby": r"\bruby\b|\brails\b",
+    "php": r"\bphp\b|\blaravel\b",
+}
+# "Go" is matched case-sensitively, since "go" is also an ordinary English word.
+_STACK_RX = {k: re.compile(v, 0 if k == "go" else re.I) for k, v in STACK_TERMS.items()}
+
+
+def stack_of(text):
+    return [k for k, rx in _STACK_RX.items() if rx.search(text)]
+
+
 def rec(title, company, desc, url, source, location, salary_text="", job_type="",
         posted=None, updated=None):
     """posted/updated are the feed's own dates (first published, last updated),
@@ -431,6 +464,7 @@ def rec(title, company, desc, url, source, location, salary_text="", job_type=""
         "us": us_remote((location or "") + " " + desc[:400]),
         "url": url, "source": source,
         "posted": posted, "updated": updated, "age_days": age_days(posted),
+        "stack": stack_of(title + " " + strip_html(desc)),
         "snippet": strip_html(desc)[:SNIPPET_LEN],
     }
 
