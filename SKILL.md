@@ -109,7 +109,9 @@ Lever API, or WebFetch) before dropping.
    job_candidates_contract.json job_candidates_contract_prefiltered.json`) to
    cheaply narrow the gather output: drops over-level titles (principal/director/
    manager/architect/tech lead/etc.; Staff is kept), enforces the salary floor
-   (undisclosed kept as plausible), dedupes by (company, title). This is still
+   (undisclosed kept as plausible), drops roles with no sign of frontend work (no
+   frontend framework in the record's `stack` and no frontend, fullstack, web or UI
+   title), dedupes by (company, title). This is still
    dumb-on-purpose volume reduction, not judging.
    **2b. Filter (only if `config.json` has a `job_funnel` section; otherwise skip
    this step and follow the no-job-funnel flow).** See "job-funnel backend" below.
