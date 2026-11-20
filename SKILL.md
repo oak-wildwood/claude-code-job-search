@@ -93,7 +93,9 @@ Lever API, or WebFetch) before dropping.
    contract lane).
    It writes `job_candidates.json` (fulltime) or `job_candidates_contract.json`
    (contract) — coarse keyword matches + description snippets + salary/rate +
-   links. This stage is dumb on purpose. Without `job_funnel` configured, it also
+   links. Its last line, `Unreachable feeds (N): ...`, names every feed it could not
+   read; when N is not 0, tell the user which companies went unsearched (a 404 usually
+   means the company moved ATS or renamed its board). This stage is dumb on purpose. Without `job_funnel` configured, it also
    auto-excludes companies with tailored docs already on disk (see
    `APPLIED_DIR`/`applied_tokens()` in `find_jobs.py`) -- but that only catches
    roles a resume/cover letter was actually generated for. Cross-check the
