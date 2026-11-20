@@ -109,7 +109,9 @@ Lever API, or WebFetch) before dropping.
    job_candidates_contract.json job_candidates_contract_prefiltered.json`) to
    cheaply narrow the gather output: drops over-level titles (principal/director/
    manager/architect/tech lead/etc.; Staff is kept), enforces the salary floor
-   (undisclosed kept as plausible), dedupes by (company, title). This is still
+   (undisclosed kept as plausible), drops roles with no sign of frontend work (the
+   record's `stack` has no frontend term and the title is not frontend, fullstack,
+   web, UI or similar), dedupes by (company, title). This is still
    dumb-on-purpose volume reduction, not judging.
    **2b. Filter (only if `config.json` has a `job_funnel` section; otherwise skip
    this step and follow the no-job-funnel flow).** See "job-funnel backend" below.
@@ -141,6 +143,16 @@ Lever API, or WebFetch) before dropping.
    Use the gap levels (4, 2) only where the row names them; otherwise pick the
    nearer named level.
 
+   - **Stack from `stack`.** Records carry `stack`, the stack terms named anywhere in
+     the full JD (the snippet is cut short and is usually the company intro). Score
+     `frontend_fit` and `backend_fit` from it as read, not `est`: `vue` or `angular`
+     with no `react` is primary (5); with `react` it is alongside React (4) unless the
+     title or snippet says which leads; `react` alone is React primary (2); no frontend
+     term (or only `svelte`, or only `frontend`, which is frontend work described
+     without a framework) is unstated (3). For `backend_fit`, the best one named:
+     `node`, `typescript` or `dotnet` 5; `java` or `python` 3; only `go`, `ruby` or
+     `php` 1; none named, judge from the snippet. A posting that names every term (a marketplace listing its
+     whole catalog) tells you nothing; judge it on the gates.
    - **Freshness from real dates.** Records carry `posted` (the feed's first-published
      date), `updated` and `age_days`; score from `age_days`. When `updated` is well
      after `posted` (Greenhouse `updated_at` vs `first_published`), or an Ashby

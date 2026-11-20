@@ -33,6 +33,7 @@ a manual registration/application step, not something this script can gather.
 import argparse
 import datetime
 import email.utils
+import html
 import json
 import os
 import re
@@ -98,20 +99,20 @@ GREENHOUSE = [
     # Every token answered with at least one job on 2026-11-19. A token that 404s is
     # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
     "adyen", "affirm", "airbnb", "airtable", "algolia", "anthropic", "asana",
-    "assemblyai", "attentive", "automatticcareers", "bitwarden", "block",
-    "braze", "brex", "buildkite", "calendly", "calm", "carta", "chime", "circleci",
-    "cloudflare", "cockroachlabs", "coinbase", "collibra", "comet", "contentful",
-    "coursera", "cribl", "cultureamp", "customerio", "dashlane", "databricks",
-    "datadog", "descope", "discord", "dropbox", "duolingo", "elastic", "endorlabs",
-    "faire", "fanaticsinc", "fastly", "figma", "fivetran", "gemini", "gitlab",
-    "grafanalabs", "greenhouse", "gusto", "harnessinc", "highnote", "honeycomb",
-    "hootsuite", "instacart", "intercom", "justworks", "labelbox", "later", "lattice",
+    "assemblyai", "attentive", "automatticcareers", "bitwarden", "block", "braze",
+    "brex", "buildkite", "calendly", "calm", "carta", "chime", "circleci", "cloudflare",
+    "cockroachlabs", "coinbase", "collibra", "comet", "contentful", "coursera", "cribl",
+    "cultureamp", "customerio", "dashlane", "databricks", "datadog", "descope",
+    "discord", "dropbox", "duolingo", "elastic", "endorlabs", "faire", "fanaticsinc",
+    "fastly", "figma", "fingerprint", "fivetran", "gemini", "gitlab", "grafanalabs",
+    "greenhouse", "gusto", "harnessinc", "highnote", "honeycomb", "hootsuite",
+    "instacart", "intercom", "justworks", "labelbox", "later", "lattice",
     "launchdarkly", "lithic", "mercury", "mixpanel", "mongodb", "narvar", "netlify",
     "newrelic", "ngrokinc", "offerup", "okta", "oscar", "pagerduty", "payoneer",
     "peloton", "pinterest", "planetscale", "ramp", "reddit", "remote", "robinhood",
-    "roblox", "samsara", "scaleai", "shein", "shipbobinc", "sigmacomputing",
+    "roblox", "samsara", "scaleai", "seatgeek", "shein", "shipbobinc", "sigmacomputing",
     "smartsheet", "stabilityai", "stockx", "storyblok", "stripe", "tailscale", "toast",
-    "togetherai", "treasuryprime", "twilio", "typeform", "udemy", "veracode",
+    "togetherai", "treasuryprime", "twilio", "typeform", "udemy", "unframe", "veracode",
     "veracyte", "vercel", "vonage", "wise", "wizinc", "zscaler",
 ]
 ASHBY = [
@@ -123,20 +124,21 @@ ASHBY = [
     "Deepgram", "docker", "Doppler", "Drata", "Dust", "ElevenLabs", "Fig",
     "frontcareers", "fullstory", "gamma", "Gray Swan AI", "handshake", "Harvey",
     "helpscout", "Hex", "Hightouch", "Infisical", "Inngest", "Knock", "LangChain",
-    "Lightdash", "lightspeedhq", "Linear", "LlamaIndex", "midjourney", "Mintlify",
-    "miro", "Modal", "moderntreasury", "motherduck", "mural", "Neon", "nerdwallet",
-    "Notion", "OneSchema", "OpenAI", "Oyster", "perplexity", "Pinecone", "Plaid",
-    "Plain", "Plane", "poolside", "poshmark", "PostHog", "Prefect", "Railway", "Ramp",
-    "Render", "Replit", "Resend", "roboflow", "runway", "sanity", "Secureframe",
-    "semgrep", "sentry", "snowflake", "snyk", "substack", "Supabase", "Svix",
-    "Synctera", "Temporal", "Tldraw", "triggerdev", "Unit", "Vanta", "vantage", "Warp",
-    "Weaviate", "webflow", "WorkOS", "writer", "WunderGraph", "zapier", "Zed",
+    "Lightdash", "lightspeedhq", "Linear", "litmus", "LlamaIndex", "midjourney",
+    "Mintlify", "miro", "Modal", "moderntreasury", "motherduck", "mural", "Neon",
+    "nerdwallet", "Notion", "OneSchema", "OpenAI", "Oyster", "perplexity", "Pinecone",
+    "Plaid", "Plain", "Plane", "poolside", "poshmark", "PostHog", "Prefect", "prelude",
+    "Railway", "Ramp", "Render", "Replit", "Resend", "roboflow", "runway", "sanity",
+    "Secureframe", "semgrep", "sentry", "snowflake", "snyk", "spruceid", "substack",
+    "Supabase", "Svix", "Synctera", "Temporal", "Tldraw", "triggerdev", "Unit", "Vanta",
+    "vantage", "Warp", "Weaviate", "webflow", "WorkOS", "writer", "WunderGraph",
+    "zapier", "Zed",
 ]
 LEVER = [
     # Every token answered with at least one job on 2026-11-19. A token that 404s is
     # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
-    "15five", "angellist", "brilliant", "fly", "gopuff", "immuta", "metabase", "ro",
-    "twingate", "veeva", "zilliz",
+    "15five", "aerostrat", "angellist", "brilliant", "fly", "gopuff", "immuta",
+    "metabase", "ro", "twingate", "veeva", "zilliz",
 ]
 
 # Display names for feed tokens that aren't the company's name as written (a board slug like
@@ -210,6 +212,13 @@ COMPANY_NAMES = {
     "zapier": "Zapier",
     "15five": "15Five",
     "angellist": "AngelList",
+    "aerostrat": "Aerostrat",
+    "unframe": "Unframe",
+    "seatgeek": "SeatGeek",
+    "fingerprint": "Fingerprint",
+    "prelude": "Prelude",
+    "litmus": "Litmus",
+    "spruceid": "SpruceID",
 }
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -415,6 +424,41 @@ def age_days(d):
         return None
 
 
+# Stack terms looked for in a posting's full description, before it is cut to SNIPPET_LEN.
+# The snippet is usually the company intro, so without this the judge can't see the stack
+# without fetching every JD. A mention, not a split: "vue" + "react" means both are named.
+STACK_TERMS = {
+    "vue": r"\bvue(?:\.?js)?\b|\bnuxt",
+    "angular": r"\bangular(?:js)?\b",
+    "react": r"\bReact(?:\.?js)?\b|\breact(?:\.js|js)\b|\bREACT\b|\b[Nn]ext\.js\b",
+    "svelte": r"\bsvelte(?:kit)?\b",
+    # Frontend work described in words, or a frontend library the rubric doesn't name.
+    "frontend": r"(?i:\bfront\s*-?\s*end\b|\bfull\s*-?\s*stack\b|\bclient\s*-?\s*side\b|\buser interfaces?\b|"
+                r"\bember(?:\.?js)?\b|\bjquery\b)|\bUI\b",
+    "typescript": r"\btypescript\b",
+    "node": r"\b[Nn]ode\.?js\b|\bNode\b(?= *[,/)]| +(?:and|or|backend|services)\b)",
+    "dotnet": r"(?<![\w.])\.net\b|\bc#|\b(?:asp|vb)\.net\b",
+    "java": r"\bjava\b|\bspring boot\b|\bkotlin\b",
+    "python": r"\bpython\b|\bdjango\b|\bfastapi\b",
+    "go": r"\b[Gg]o[Ll]ang\b|\bGo\b(?= *(?:[,/.;:)]|-based|and\b|or\b|services|microservices))",
+    "ruby": r"\bruby\b",
+    "php": r"\bphp\b|\blaravel\b",
+}
+# Matched case-sensitively, since each is also an ordinary English word ("we react
+# quickly", "a single node", "go and see"); "frontend" for its "UI", with the rest of
+# that pattern in a (?i:...) group. The other terms ignore case.
+_CASE_SENSITIVE = {"react", "node", "go", "frontend"}
+_STACK_RX = {k: re.compile(v, 0 if k in _CASE_SENSITIVE else re.I) for k, v in STACK_TERMS.items()}
+
+
+def stack_of(text):
+    """Stack terms in text, after decoding entities: Greenhouse content arrives
+    HTML-escaped, and an escaped link like href=&quot;https://x.net&quot; would
+    otherwise read as .NET."""
+    text = strip_html(html.unescape(html.unescape(text)))
+    return [k for k, rx in _STACK_RX.items() if rx.search(text)]
+
+
 def rec(title, company, desc, url, source, location, salary_text="", job_type="",
         posted=None, updated=None):
     """posted/updated are the feed's own dates (first published, last updated),
@@ -431,6 +475,7 @@ def rec(title, company, desc, url, source, location, salary_text="", job_type=""
         "us": us_remote((location or "") + " " + desc[:400]),
         "url": url, "source": source,
         "posted": posted, "updated": updated, "age_days": age_days(posted),
+        "stack": stack_of(title + " " + desc),
         "snippet": strip_html(desc)[:SNIPPET_LEN],
     }
 
