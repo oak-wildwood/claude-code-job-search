@@ -33,6 +33,7 @@ a manual registration/application step, not something this script can gather.
 import argparse
 import datetime
 import email.utils
+import html
 import json
 import os
 import re
@@ -95,167 +96,130 @@ HIMALAYAS_QUERIES = ["vue", "react", "typescript", "angular", "frontend", "node"
                      "fullstack", ".net"]
 
 GREENHOUSE = [
-    # --- original ---
-    "stripe", "airbnb", "reddit", "brex", "ramp", "gusto", "benchling",
-    "discord", "robinhood", "coinbase", "databricks", "cloudflare",
-    "twilio", "asana", "figma", "dropbox", "instacart", "affirm",
-    "gitlab", "hashicorp", "shopify", "datadog", "doordash", "pinterest",
-    "block", "elastic", "mongodb", "confluent", "samsara", "airtable",
-    "webflow", "contentful", "sourcegraph", "postman", "grafanalabs",
-    "render", "zapier", "retool", "mercury", "chime", "kraken", "okta",
-    "cockroachlabs", "niantic", "roblox", "unity", "gemini", "plaid",
-    # --- expanded: big tech / late-stage ---
-    "netlify", "supabase", "vercel", "deno", "fly", "railway",
-    "launchdarkly", "stytch", "axiom", "posthog", "planetscale",
-    "neon", "turso", "upstash", "convex", "clerk", "inngest",
-    "temporal", "prefect", "dagster", "modal", "anyscale", "replicate",
-    "huggingface", "anthropic", "openai", "mistral",
-    # --- fintech / payments ---
-    "marqeta", "toast", "adyen", "wise", "remitly", "melio",
-    "bill", "rippling", "justworks", "paylocity", "carta",
-    "braintree", "lithic", "moderntreasury", "column", "increase",
-    "unit", "treasuryprime", "synctera", "bond", "highnote",
-    # --- B2B SaaS / productivity ---
-    "notion", "coda", "clickup", "linear", "height", "shortcut",
-    "loom", "miro", "mural", "canva", "grammarly", "calendly",
-    "typeform", "airtable", "smartsheet", "monday", "lattice",
-    "rippling", "gusto", "deel", "remote", "oysterhr", "justworks",
-    "greenhouse", "lever", "ashbyhq", "gem", "dover",
-    # --- developer tools / infra ---
-    "hashicorp", "snyk", "sonar", "sentry", "circleci", "buildkite",
-    "pulumi", "env0", "spacelift", "firehydrant", "rootly", "blameless",
-    "pagerduty", "opsgenie", "squadcast", "honeycomb", "lightstep",
-    "chronosphere", "cribl", "mezmo", "logdna", "coralogix",
-    "launchdarkly", "split", "statsig", "eppo", "growthbook",
-    "stytch", "workos", "fusionauth", "descope", "authzed",
-    "zesty", "vantage", "cloudhealth", "spot", "cast",
-    # --- data / analytics ---
-    "dbt-labs", "fivetran", "airbyte", "census", "hightouch",
-    "hex", "mode", "sigma", "lightdash", "cube", "metabase",
-    "preset", "atlan", "alation", "collibra", "immuta",
-    "snowflake", "motherduck", "clickhouse", "timescale", "questdb",
-    # --- security ---
-    "crowdstrike", "sentinelone", "lacework", "orca", "wiz",
-    "snyk", "veracode", "checkmarx", "semgrep", "endor",
-    "bitwarden", "1password", "dashlane", "keeper",
-    # --- AI / ML companies ---
-    "scale", "labelbox", "weights-and-biases", "mlflow",
-    "pinecone", "weaviate", "qdrant", "chroma", "zilliz",
-    "langchain", "llamaindex", "fixie", "dust", "vellum",
-    "jasper", "writer", "copy-ai", "runway", "stability",
-    "midjourney", "elevenelabs", "assemblyai", "deepgram",
-    "glean", "moveworks", "adept", "cognition", "poolside",
-    # --- e-commerce / marketplace ---
-    "etsy", "poshmark", "mercari", "offerup", "depop",
-    "faire", "shein", "fanatics", "goat", "stockx",
-    "shipbob", "shippo", "easypost", "narvar",
-    # --- health tech ---
-    "oscar", "devoted", "cityblock", "ro", "hims",
-    "truepill", "capsule", "alto", "amazon-pharmacy",
-    "flatiron", "tempus", "veracyte", "grail",
-    # --- education ---
-    "duolingo", "coursera", "udemy", "masterclass", "khan",
-    "replit", "codecademy", "brilliant",
-    # --- misc remote-friendly ---
-    "automattic", "zapier", "buffer", "doist", "toggl",
-    "hotjar", "convertkit", "transistor", "fathom",
-    "fly", "render", "railway", "coolify",
-    "planetscale", "neon", "xata", "turso",
-    "expo", "eas", "tamagui", "nativewind",
+    # Every token answered with at least one job on 2026-11-19. A token that 404s is
+    # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
+    "adyen", "affirm", "airbnb", "airtable", "algolia", "anthropic", "asana",
+    "assemblyai", "attentive", "automatticcareers", "bitwarden", "block", "braze",
+    "brex", "buildkite", "calendly", "calm", "carta", "chime", "circleci", "cloudflare",
+    "cockroachlabs", "coinbase", "collibra", "comet", "contentful", "coursera", "cribl",
+    "cultureamp", "customerio", "dashlane", "databricks", "datadog", "descope",
+    "discord", "dropbox", "duolingo", "elastic", "endorlabs", "faire", "fanaticsinc",
+    "fastly", "figma", "fingerprint", "fivetran", "gemini", "gitlab", "grafanalabs",
+    "greenhouse", "gusto", "harnessinc", "highnote", "honeycomb", "hootsuite",
+    "instacart", "intercom", "justworks", "labelbox", "later", "lattice",
+    "launchdarkly", "lithic", "mercury", "mixpanel", "mongodb", "narvar", "netlify",
+    "newrelic", "ngrokinc", "offerup", "okta", "oscar", "pagerduty", "payoneer",
+    "peloton", "pinterest", "planetscale", "ramp", "reddit", "remote", "robinhood",
+    "roblox", "samsara", "scaleai", "seatgeek", "shein", "shipbobinc", "sigmacomputing",
+    "smartsheet", "stabilityai", "stockx", "storyblok", "stripe", "tailscale", "toast",
+    "togetherai", "treasuryprime", "twilio", "typeform", "udemy", "unframe", "veracode",
+    "veracyte", "vercel", "vonage", "wise", "wizinc", "zscaler",
 ]
 ASHBY = [
-    # --- original ---
-    "Gray Swan AI", "Linear", "Vercel", "Replit",
-    "Retool", "Mercury", "Perplexity AI", "Cursor", "Cohere", "Notion", "Deel",
-    # --- expanded ---
-    "Ramp", "Anthropic", "OpenAI", "Mistral AI", "Anduril",
-    "Supabase", "PostHog", "Deno", "Clerk", "Convex",
-    "Inngest", "Axiom", "Neon", "Turso", "Upstash",
-    "Fly.io", "Railway", "Render", "Coolify",
-    "Stytch", "WorkOS", "Descope", "AuthZed",
-    "Warp", "Fig", "Zed", "GitButler",
-    "Temporal", "Prefect", "Dagster", "Modal",
-    "Dust", "Vellum", "LangChain", "LlamaIndex",
-    "Glean", "Harvey", "Casetext", "EvenUp",
-    "Weights & Biases", "Pinecone", "Weaviate", "Chroma",
-    "AssemblyAI", "Deepgram", "ElevenLabs", "Stability AI",
-    "Scale AI", "Labelbox", "Replicate", "Together AI",
-    "Braintrust", "Humanloop", "Helicone", "Langfuse",
-    "Resend", "Loops", "Svix", "Knock", "Novu",
-    "Cal.com", "Formbricks", "Documenso", "Eraser",
-    "Doppler", "Infisical", "GitGuardian",
-    "Secureframe", "Drata", "Vanta", "Launchnotes",
-    "Hightouch", "Census", "Rudderstack", "Segment",
-    "Hex", "Sigma Computing", "Lightdash", "Cube",
-    "Atlan", "Monte Carlo", "Bigeye", "Metaplane",
-    "Flatfile", "OneSchema", "Osmos",
-    "Plain", "Intercom", "Front", "Missive",
-    "Stripe", "Plaid", "Unit", "Lithic", "Increase",
-    "Modern Treasury", "Column", "Synctera", "Highnote",
-    "Carta", "Pulley", "AngelList", "Wellfound",
-    "Remote", "Oyster", "Deel", "Plane",
-    "Lattice", "Culture Amp", "15Five", "Leapsome",
-    "Ashby", "Gem", "Dover", "Greenhouse",
-    "Liveblocks", "Tldraw", "Excalidraw",
-    "Trigger.dev", "Defer", "Qstash",
-    "Mintlify", "ReadMe", "Stoplight", "Bump.sh",
-    "Grafbase", "Hasura", "Stellate", "WunderGraph",
-    "EdgeDB", "SurrealDB", "CockroachDB",
-    "PlanetScale", "Xata", "Fauna",
+    # Every token answered with at least one job on 2026-11-19. A token that 404s is
+    # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
+    "1password", "airbyte", "airwallex", "amplitude", "anyscale", "Ashby", "Atlan",
+    "AuthZed", "benchling", "Braintrust", "bubble", "buffer", "capsule", "Clerk",
+    "clickhouse", "clickup", "cognition", "Cohere", "Column", "Cube", "Cursor",
+    "Deepgram", "docker", "Doppler", "Drata", "Dust", "ElevenLabs", "Fig",
+    "frontcareers", "fullstory", "gamma", "Gray Swan AI", "handshake", "Harvey",
+    "helpscout", "Hex", "Hightouch", "Infisical", "Inngest", "Knock", "LangChain",
+    "Lightdash", "lightspeedhq", "Linear", "litmus", "LlamaIndex", "midjourney",
+    "Mintlify", "miro", "Modal", "moderntreasury", "motherduck", "mural", "Neon",
+    "nerdwallet", "Notion", "OneSchema", "OpenAI", "Oyster", "perplexity", "Pinecone",
+    "Plaid", "Plain", "Plane", "poolside", "poshmark", "PostHog", "Prefect", "prelude",
+    "Railway", "Ramp", "Render", "Replit", "Resend", "roboflow", "runway", "sanity",
+    "Secureframe", "semgrep", "sentry", "snowflake", "snyk", "spruceid", "substack",
+    "Supabase", "Svix", "Synctera", "Temporal", "Tldraw", "triggerdev", "Unit", "Vanta",
+    "vantage", "Warp", "Weaviate", "webflow", "WorkOS", "writer", "WunderGraph",
+    "zapier", "Zed",
 ]
 LEVER = [
-    # --- original ---
-    "veeva", "plaid", "netflix", "nerdwallet", "attentive", "gopuff",
-    # --- expanded ---
-    "netlify", "sanity", "contentful", "strapi", "storyblok",
-    "algolia", "typesense", "meilisearch",
-    "auth0", "okta", "onelogin",
-    "twilio", "sendgrid", "messagebird", "vonage",
-    "segment", "amplitude", "mixpanel", "heap", "fullstory",
-    "launchdarkly", "split", "statsig", "optimizely",
-    "fastly", "akamai", "bunny",
-    "circleci", "semaphore", "harness", "codefresh",
-    "sonarqube", "codeclimate", "deepsource",
-    "snyk", "bridgecrew", "checkov",
-    "tailscale", "twingate", "zscaler",
-    "loom", "pitch", "gamma", "beautiful",
-    "calendly", "savvycal", "reclaim",
-    "linear", "shortcut", "clickup", "height",
-    "notion", "coda", "slite",
-    "figma", "framer", "webflow", "bubble",
-    "retool", "internal", "appsmith", "tooljet",
-    "supabase", "firebase", "convex",
-    "prisma", "drizzle", "kysely",
-    "vercel", "netlify", "render", "railway",
-    "fly", "modal", "replicate", "banana",
-    "weights-and-biases", "comet", "neptune",
-    "huggingface", "roboflow", "labelbox",
-    "jasper", "writer", "copy-ai", "anyword",
-    "grammarly", "textio", "hemingway",
-    "wise", "remitly", "airwallex", "payoneer",
-    "marqeta", "lithic", "highnote", "unit",
-    "brex", "divvy", "ramp", "airbase",
-    "toast", "square", "clover", "lightspeed",
-    "shopify", "bigcommerce", "swell", "medusa",
-    "faire", "handshake", "firstbase",
-    "calm", "headspace", "noom", "peloton",
-    "duolingo", "coursera", "udemy", "skillshare",
-    "automattic", "ghost", "substack", "beehiiv",
-    "doist", "todoist", "toggl", "clockify",
-    "buffer", "hootsuite", "sprout", "later",
-    "hotjar", "smartlook", "mouseflow", "clarity",
-    "convertkit", "mailchimp", "customer-io", "braze",
-    "intercom", "zendesk", "freshworks", "helpscout",
-    "pagerduty", "opsgenie", "betteruptime",
-    "sentry", "bugsnag", "rollbar", "raygun",
-    "datadog", "newrelic", "dynatrace", "elastic",
-    "hashicorp", "pulumi", "crossplane", "env0",
-    "terraform", "spacelift", "scalr",
-    "docker", "rancher", "portainer",
-    "gitpod", "codespaces", "coder", "devpod",
-    "doppler", "infisical", "vault",
-    "tailscale", "ngrok", "cloudflared",
+    # Every token answered with at least one job on 2026-11-19. A token that 404s is
+    # reported by the gather (see FAILED_FEEDS), so prune or fix it when one shows up.
+    "15five", "aerostrat", "angellist", "brilliant", "fly", "gopuff", "immuta",
+    "metabase", "ro", "twingate", "veeva", "zilliz",
 ]
+
+# Display names for feed tokens that aren't the company's name as written (a board slug like
+# "wizinc", or a lowercase Ashby slug). Tokens not listed: Greenhouse and Lever use token.title(),
+# Ashby uses the name as written.
+COMPANY_NAMES = {
+    "automatticcareers": "Automattic",
+    "cultureamp": "Culture Amp",
+    "customerio": "Customer.io",
+    "endorlabs": "Endor Labs",
+    "fanaticsinc": "Fanatics",
+    "harnessinc": "Harness",
+    "ngrokinc": "ngrok",
+    "newrelic": "New Relic",
+    "scaleai": "Scale AI",
+    "shipbobinc": "ShipBob",
+    "sigmacomputing": "Sigma Computing",
+    "stabilityai": "Stability AI",
+    "togetherai": "Together AI",
+    "wizinc": "Wiz",
+    "grafanalabs": "Grafana Labs",
+    "cockroachlabs": "Cockroach Labs",
+    "treasuryprime": "Treasury Prime",
+    "launchdarkly": "LaunchDarkly",
+    "gitlab": "GitLab",
+    "mongodb": "MongoDB",
+    "circleci": "CircleCI",
+    "pagerduty": "PagerDuty",
+    "offerup": "OfferUp",
+    "stockx": "StockX",
+    "1password": "1Password",
+    "airbyte": "Airbyte",
+    "airwallex": "Airwallex",
+    "amplitude": "Amplitude",
+    "anyscale": "Anyscale",
+    "benchling": "Benchling",
+    "bubble": "Bubble",
+    "buffer": "Buffer",
+    "capsule": "Capsule",
+    "clickhouse": "ClickHouse",
+    "clickup": "ClickUp",
+    "cognition": "Cognition",
+    "docker": "Docker",
+    "frontcareers": "Front",
+    "fullstory": "FullStory",
+    "gamma": "Gamma",
+    "handshake": "Handshake",
+    "helpscout": "Help Scout",
+    "lightspeedhq": "Lightspeed",
+    "midjourney": "Midjourney",
+    "miro": "Miro",
+    "moderntreasury": "Modern Treasury",
+    "motherduck": "MotherDuck",
+    "mural": "Mural",
+    "nerdwallet": "NerdWallet",
+    "perplexity": "Perplexity",
+    "poolside": "Poolside",
+    "poshmark": "Poshmark",
+    "roboflow": "Roboflow",
+    "runway": "Runway",
+    "sanity": "Sanity",
+    "semgrep": "Semgrep",
+    "sentry": "Sentry",
+    "snowflake": "Snowflake",
+    "snyk": "Snyk",
+    "substack": "Substack",
+    "triggerdev": "Trigger.dev",
+    "vantage": "Vantage",
+    "webflow": "Webflow",
+    "writer": "Writer",
+    "zapier": "Zapier",
+    "15five": "15Five",
+    "angellist": "AngelList",
+    "aerostrat": "Aerostrat",
+    "unframe": "Unframe",
+    "seatgeek": "SeatGeek",
+    "fingerprint": "Fingerprint",
+    "prelude": "Prelude",
+    "litmus": "Litmus",
+    "spruceid": "SpruceID",
+}
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -308,6 +272,17 @@ _APPLIED_REGEXES = [re.compile(_pattern_to_regex(p), re.I)
 EXCLUDE_STOPWORDS = {"backup", "principal", "master"}
 SNIPPET_LEN = 700
 # ----------------------------------------------------------------------------
+
+
+# Feeds that could not be read this run, as (source, name, reason). Each fetcher records its
+# own failure here instead of returning nothing silently, so a renamed or dead ATS token
+# shows up in the gather's output rather than quietly shrinking the search.
+FAILED_FEEDS = []
+
+
+def _failed(source, name, err):
+    code = getattr(err, "code", None)
+    FAILED_FEEDS.append((source, name, f"HTTP {code}" if code else type(err).__name__))
 
 
 def get(url):
@@ -449,6 +424,41 @@ def age_days(d):
         return None
 
 
+# Stack terms looked for in a posting's full description, before it is cut to SNIPPET_LEN.
+# The snippet is usually the company intro, so without this the judge can't see the stack
+# without fetching every JD. A mention, not a split: "vue" + "react" means both are named.
+STACK_TERMS = {
+    "vue": r"\bvue(?:\.?js)?\b|\bnuxt",
+    "angular": r"\bangular(?:js)?\b",
+    "react": r"\bReact(?:\.?js)?\b|\breact(?:\.js|js)\b|\bREACT\b|\b[Nn]ext\.js\b",
+    "svelte": r"\bsvelte(?:kit)?\b",
+    # Frontend work described in words, or a frontend library the rubric doesn't name.
+    "frontend": r"(?i:\bfront\s*-?\s*end\b|\bfull\s*-?\s*stack\b|\bclient\s*-?\s*side\b|\buser interfaces?\b|"
+                r"\bember(?:\.?js)?\b|\bjquery\b)|\bUI\b",
+    "typescript": r"\btypescript\b",
+    "node": r"\b[Nn]ode\.?js\b|\bNode\b(?= *[,/)]| +(?:and|or|backend|services)\b)",
+    "dotnet": r"(?<![\w.])\.net\b|\bc#|\b(?:asp|vb)\.net\b",
+    "java": r"\bjava\b|\bspring boot\b|\bkotlin\b",
+    "python": r"\bpython\b|\bdjango\b|\bfastapi\b",
+    "go": r"\b[Gg]o[Ll]ang\b|\bGo\b(?= *(?:[,/.;:)]|-based|and\b|or\b|services|microservices))",
+    "ruby": r"\bruby\b",
+    "php": r"\bphp\b|\blaravel\b",
+}
+# Matched case-sensitively, since each is also an ordinary English word ("we react
+# quickly", "a single node", "go and see"); "frontend" for its "UI", with the rest of
+# that pattern in a (?i:...) group. The other terms ignore case.
+_CASE_SENSITIVE = {"react", "node", "go", "frontend"}
+_STACK_RX = {k: re.compile(v, 0 if k in _CASE_SENSITIVE else re.I) for k, v in STACK_TERMS.items()}
+
+
+def stack_of(text):
+    """Stack terms in text, after decoding entities: Greenhouse content arrives
+    HTML-escaped, and an escaped link like href=&quot;https://x.net&quot; would
+    otherwise read as .NET."""
+    text = strip_html(html.unescape(html.unescape(text)))
+    return [k for k, rx in _STACK_RX.items() if rx.search(text)]
+
+
 def rec(title, company, desc, url, source, location, salary_text="", job_type="",
         posted=None, updated=None):
     """posted/updated are the feed's own dates (first published, last updated),
@@ -465,6 +475,7 @@ def rec(title, company, desc, url, source, location, salary_text="", job_type=""
         "us": us_remote((location or "") + " " + desc[:400]),
         "url": url, "source": source,
         "posted": posted, "updated": updated, "age_days": age_days(posted),
+        "stack": stack_of(title + " " + desc),
         "snippet": strip_html(desc)[:SNIPPET_LEN],
     }
 
@@ -474,7 +485,8 @@ def from_remoteok(mode="fulltime"):
     out = []
     try:
         data = json.loads(get("https://remoteok.com/api"))[1:]
-    except Exception:
+    except Exception as e:
+        _failed("RemoteOK", "remoteok", e)
         return out
     for j in data:
         title = j.get("position", "")
@@ -495,7 +507,8 @@ def from_remotive(mode="fulltime"):
     out = []
     try:
         data = json.loads(get("https://remotive.com/api/remote-jobs?category=software-dev&limit=100"))
-    except Exception:
+    except Exception as e:
+        _failed("Remotive", "remotive", e)
         return out
     for j in data.get("jobs", []):
         jt = (j.get("job_type") or "").lower()
@@ -525,7 +538,8 @@ def from_wwr(mode="contract"):
         try:
             xml_text = get(feed_url)
             root = ET.fromstring(xml_text)
-        except Exception:
+        except Exception as e:
+            _failed("WWR", feed_url.rsplit("/", 1)[-1], e)
             continue
         for item in root.findall(".//item"):
             raw_title = (item.findtext("title") or "").strip()
@@ -562,7 +576,8 @@ def from_himalayas(mode="contract"):
         }))
         try:
             data = json.loads(get(url))
-        except Exception:
+        except Exception as e:
+            _failed("Himalayas", q, e)
             continue
         for j in data.get("jobs", []):
             guid = j.get("guid") or j.get("applicationLink") or ""
@@ -589,14 +604,15 @@ def from_greenhouse(token, mode="fulltime"):
     out = []
     try:
         data = json.loads(get(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"))
-    except Exception:
+    except Exception as e:
+        _failed("Greenhouse", token, e)
         return out
     for j in data.get("jobs", []):
         title = j.get("title", "")
-        loc = (j.get("location") or {}).get("name", "")
+        loc = (j.get("location") or {}).get("name") or ""
         content = strip_html(urllib.parse.unquote(j.get("content", "")))
         if "remote" in (loc + " " + content).lower() and coarse_match(title, content, mode, title_only=(mode == "contract")):
-            out.append(rec(title, token.title(), content, j.get("absolute_url", ""),
+            out.append(rec(title, COMPANY_NAMES.get(token, token.title()), content, j.get("absolute_url", ""),
                            "Greenhouse", loc,
                            posted=j.get("first_published"), updated=j.get("updated_at")))
     return out
@@ -607,7 +623,8 @@ def from_ashby(name, mode="fulltime"):
     try:
         data = json.loads(get("https://api.ashbyhq.com/posting-api/job-board/"
                               + urllib.parse.quote(name) + "?includeCompensation=true"))
-    except Exception:
+    except Exception as e:
+        _failed("Ashby", name, e)
         return out
     for j in data.get("jobs", []):
         title = j.get("title", "")
@@ -616,7 +633,7 @@ def from_ashby(name, mode="fulltime"):
             continue
         desc = j.get("descriptionPlain") or strip_html(j.get("descriptionHtml", ""))
         if coarse_match(title, desc, mode, title_only=(mode == "contract")):
-            out.append(rec(title, name, desc, j.get("applyUrl") or j.get("jobUrl", ""),
+            out.append(rec(title, COMPANY_NAMES.get(name, name), desc, j.get("applyUrl") or j.get("jobUrl", ""),
                            "Ashby", loc, json.dumps(j.get("compensation") or {}),
                            posted=j.get("publishedAt"), updated=j.get("updatedAt")))
     return out
@@ -626,15 +643,16 @@ def from_lever(token, mode="fulltime"):
     out = []
     try:
         data = json.loads(get(f"https://api.lever.co/v0/postings/{token}?mode=json"))
-    except Exception:
+    except Exception as e:
+        _failed("Lever", token, e)
         return out
     for j in data:
         title = j.get("text", "")
         cats = j.get("categories") or {}
-        loc = cats.get("location", "")
+        loc = cats.get("location") or ""
         desc = j.get("descriptionPlain", "")
         if "remote" in (loc + " " + desc).lower() and coarse_match(title, desc, mode, title_only=(mode == "contract")):
-            out.append(rec(title, token.title(), desc, j.get("hostedUrl", ""),
+            out.append(rec(title, COMPANY_NAMES.get(token, token.title()), desc, j.get("hostedUrl", ""),
                            "Lever", loc, json.dumps(j.get("salaryRange") or {}),
                            posted=j.get("createdAt"), updated=j.get("updatedAt")))
     return out
@@ -651,18 +669,19 @@ def main():
 
     jobs = []
     with ThreadPoolExecutor(max_workers=32) as ex:
-        futs = [ex.submit(from_remoteok, mode), ex.submit(from_remotive, mode)]
-        futs += [ex.submit(from_greenhouse, t, mode) for t in GREENHOUSE]
-        futs += [ex.submit(from_ashby, n, mode) for n in ASHBY]
-        futs += [ex.submit(from_lever, t, mode) for t in LEVER]
+        futs = {ex.submit(from_remoteok, mode): ("RemoteOK", "remoteok"),
+                ex.submit(from_remotive, mode): ("Remotive", "remotive")}
+        futs.update({ex.submit(from_greenhouse, t, mode): ("Greenhouse", t) for t in GREENHOUSE})
+        futs.update({ex.submit(from_ashby, n, mode): ("Ashby", n) for n in ASHBY})
+        futs.update({ex.submit(from_lever, t, mode): ("Lever", t) for t in LEVER})
         if mode == "contract":
-            futs.append(ex.submit(from_wwr, mode))
-            futs.append(ex.submit(from_himalayas, mode))
+            futs[ex.submit(from_wwr, mode)] = ("WWR", "wwr")
+            futs[ex.submit(from_himalayas, mode)] = ("Himalayas", "himalayas")
         for f in as_completed(futs):
             try:
                 jobs.extend(f.result())
-            except Exception:
-                pass
+            except Exception as e:  # a fetcher crashed after its fetch, e.g. on an unexpected shape
+                _failed(*futs[f], e)
 
     seen, uniq = set(), []
     for j in jobs:
@@ -688,6 +707,9 @@ def main():
     print(f"[{mode}] Gathered {len(uniq)} coarse-matched candidates (after exclusions) by source: {by_src}")
     print(f"With disclosed salary/rate: {sum(1 for j in uniq if j['salary'])}")
     print(f"Excluded (already applied): {', '.join(excluded) if excluded else 'none'}")
+    failed = sorted(FAILED_FEEDS)
+    print(f"Unreachable feeds ({len(failed)}): "
+          + (", ".join(f"{src} {name} ({why})" for src, name, why in failed) if failed else "none"))
     print(f"JSON written to: {out_path}")
     print(f"Next: Claude reads {out_name} and judges fit per record.")
 
