@@ -139,6 +139,79 @@ LEVER = [
     "twingate", "veeva", "zilliz",
 ]
 
+# Display names for feed tokens that aren't the company's name as written (a board slug like
+# "wizinc", or a lowercase Ashby slug). Tokens not listed: Greenhouse and Lever use token.title(),
+# Ashby uses the name as written.
+COMPANY_NAMES = {
+    "automatticcareers": "Automattic",
+    "cultureamp": "Culture Amp",
+    "customerio": "Customer.io",
+    "endorlabs": "Endor Labs",
+    "fanaticsinc": "Fanatics",
+    "harnessinc": "Harness",
+    "ngrokinc": "ngrok",
+    "newrelic": "New Relic",
+    "scaleai": "Scale AI",
+    "shipbobinc": "ShipBob",
+    "sigmacomputing": "Sigma Computing",
+    "stabilityai": "Stability AI",
+    "togetherai": "Together AI",
+    "wizinc": "Wiz",
+    "grafanalabs": "Grafana Labs",
+    "cockroachlabs": "Cockroach Labs",
+    "treasuryprime": "Treasury Prime",
+    "launchdarkly": "LaunchDarkly",
+    "gitlab": "GitLab",
+    "mongodb": "MongoDB",
+    "circleci": "CircleCI",
+    "pagerduty": "PagerDuty",
+    "offerup": "OfferUp",
+    "stockx": "StockX",
+    "1password": "1Password",
+    "airbyte": "Airbyte",
+    "airwallex": "Airwallex",
+    "amplitude": "Amplitude",
+    "anyscale": "Anyscale",
+    "benchling": "Benchling",
+    "bubble": "Bubble",
+    "buffer": "Buffer",
+    "capsule": "Capsule",
+    "clickhouse": "ClickHouse",
+    "clickup": "ClickUp",
+    "cognition": "Cognition",
+    "docker": "Docker",
+    "frontcareers": "Front",
+    "fullstory": "FullStory",
+    "gamma": "Gamma",
+    "handshake": "Handshake",
+    "helpscout": "Help Scout",
+    "lightspeedhq": "Lightspeed",
+    "midjourney": "Midjourney",
+    "miro": "Miro",
+    "moderntreasury": "Modern Treasury",
+    "motherduck": "MotherDuck",
+    "mural": "Mural",
+    "nerdwallet": "NerdWallet",
+    "perplexity": "Perplexity",
+    "poolside": "Poolside",
+    "poshmark": "Poshmark",
+    "roboflow": "Roboflow",
+    "runway": "Runway",
+    "sanity": "Sanity",
+    "semgrep": "Semgrep",
+    "sentry": "Sentry",
+    "snowflake": "Snowflake",
+    "snyk": "Snyk",
+    "substack": "Substack",
+    "triggerdev": "Trigger.dev",
+    "vantage": "Vantage",
+    "webflow": "Webflow",
+    "writer": "Writer",
+    "zapier": "Zapier",
+    "15five": "15Five",
+    "angellist": "AngelList",
+}
+
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
       "Accept": "application/json,text/plain,*/*"}
@@ -494,7 +567,7 @@ def from_greenhouse(token, mode="fulltime"):
         loc = (j.get("location") or {}).get("name") or ""
         content = strip_html(urllib.parse.unquote(j.get("content", "")))
         if "remote" in (loc + " " + content).lower() and coarse_match(title, content, mode, title_only=(mode == "contract")):
-            out.append(rec(title, token.title(), content, j.get("absolute_url", ""),
+            out.append(rec(title, COMPANY_NAMES.get(token, token.title()), content, j.get("absolute_url", ""),
                            "Greenhouse", loc,
                            posted=j.get("first_published"), updated=j.get("updated_at")))
     return out
@@ -515,7 +588,7 @@ def from_ashby(name, mode="fulltime"):
             continue
         desc = j.get("descriptionPlain") or strip_html(j.get("descriptionHtml", ""))
         if coarse_match(title, desc, mode, title_only=(mode == "contract")):
-            out.append(rec(title, name, desc, j.get("applyUrl") or j.get("jobUrl", ""),
+            out.append(rec(title, COMPANY_NAMES.get(name, name), desc, j.get("applyUrl") or j.get("jobUrl", ""),
                            "Ashby", loc, json.dumps(j.get("compensation") or {}),
                            posted=j.get("publishedAt"), updated=j.get("updatedAt")))
     return out
@@ -534,7 +607,7 @@ def from_lever(token, mode="fulltime"):
         loc = cats.get("location") or ""
         desc = j.get("descriptionPlain", "")
         if "remote" in (loc + " " + desc).lower() and coarse_match(title, desc, mode, title_only=(mode == "contract")):
-            out.append(rec(title, token.title(), desc, j.get("hostedUrl", ""),
+            out.append(rec(title, COMPANY_NAMES.get(token, token.title()), desc, j.get("hostedUrl", ""),
                            "Lever", loc, json.dumps(j.get("salaryRange") or {}),
                            posted=j.get("createdAt"), updated=j.get("updatedAt")))
     return out
