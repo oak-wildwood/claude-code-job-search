@@ -33,6 +33,7 @@ a manual registration/application step, not something this script can gather.
 import argparse
 import datetime
 import email.utils
+import html
 import json
 import os
 import re
@@ -429,22 +430,28 @@ def age_days(d):
 STACK_TERMS = {
     "vue": r"\bvue(?:\.?js)?\b|\bnuxt",
     "angular": r"\bangular(?:js)?\b",
-    "react": r"\breact(?:\.?js)?\b|\bnext\.js\b",
+    "react": r"\bReact(?:\.?js)?\b|\breact(?:\.js|js)\b|\bREACT\b|\b[Nn]ext\.js\b",
     "svelte": r"\bsvelte(?:kit)?\b",
     "typescript": r"\btypescript\b",
-    "node": r"\bnode(?:\.?js)?\b",
-    "dotnet": r"\.net\b|\bc#|\basp\.net\b",
-    "java": r"\bjava\b(?!script)|\bspring boot\b|\bkotlin\b",
+    "node": r"\b[Nn]ode\.?js\b|\bNode\b(?= *[,/)]| +(?:and|or|backend|services)\b)",
+    "dotnet": r"(?<![\w.])\.net\b|\bc#|\b(?:asp|vb)\.net\b",
+    "java": r"\bjava\b|\bspring boot\b|\bkotlin\b",
     "python": r"\bpython\b|\bdjango\b|\bfastapi\b",
-    "go": r"\b[Gg]olang\b|\bGo\b(?= *(?:,|/|and|or|\)|services|microservices))",
-    "ruby": r"\bruby\b|\brails\b",
+    "go": r"\b[Gg]o[Ll]ang\b|\bGo\b(?= *(?:[,/.;:)]|-based|and\b|or\b|services|microservices))",
+    "ruby": r"\bruby\b",
     "php": r"\bphp\b|\blaravel\b",
 }
-# "Go" is matched case-sensitively, since "go" is also an ordinary English word.
-_STACK_RX = {k: re.compile(v, 0 if k == "go" else re.I) for k, v in STACK_TERMS.items()}
+# Matched case-sensitively, since each is also an ordinary English word ("we react
+# quickly", "a single node", "go and see"). The rest ignore case.
+_CASE_SENSITIVE = {"react", "node", "go"}
+_STACK_RX = {k: re.compile(v, 0 if k in _CASE_SENSITIVE else re.I) for k, v in STACK_TERMS.items()}
 
 
 def stack_of(text):
+    """Stack terms in text, after decoding entities: Greenhouse content arrives
+    HTML-escaped, and an escaped link like href=&quot;https://x.net&quot; would
+    otherwise read as .NET."""
+    text = strip_html(html.unescape(html.unescape(text)))
     return [k for k, rx in _STACK_RX.items() if rx.search(text)]
 
 
@@ -464,7 +471,7 @@ def rec(title, company, desc, url, source, location, salary_text="", job_type=""
         "us": us_remote((location or "") + " " + desc[:400]),
         "url": url, "source": source,
         "posted": posted, "updated": updated, "age_days": age_days(posted),
-        "stack": stack_of(title + " " + strip_html(desc)),
+        "stack": stack_of(title + " " + desc),
         "snippet": strip_html(desc)[:SNIPPET_LEN],
     }
 
