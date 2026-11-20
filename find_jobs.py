@@ -432,6 +432,9 @@ STACK_TERMS = {
     "angular": r"\bangular(?:js)?\b",
     "react": r"\bReact(?:\.?js)?\b|\breact(?:\.js|js)\b|\bREACT\b|\b[Nn]ext\.js\b",
     "svelte": r"\bsvelte(?:kit)?\b",
+    # Frontend work described in words, or a frontend library the rubric doesn't name.
+    "frontend": r"(?i:\bfront\s*-?\s*end\b|\bfull\s*-?\s*stack\b|\bclient\s*-?\s*side\b|\buser interfaces?\b|"
+                r"\bember(?:\.?js)?\b|\bjquery\b)|\bUI\b",
     "typescript": r"\btypescript\b",
     "node": r"\b[Nn]ode\.?js\b|\bNode\b(?= *[,/)]| +(?:and|or|backend|services)\b)",
     "dotnet": r"(?<![\w.])\.net\b|\bc#|\b(?:asp|vb)\.net\b",
@@ -442,8 +445,9 @@ STACK_TERMS = {
     "php": r"\bphp\b|\blaravel\b",
 }
 # Matched case-sensitively, since each is also an ordinary English word ("we react
-# quickly", "a single node", "go and see"). The rest ignore case.
-_CASE_SENSITIVE = {"react", "node", "go"}
+# quickly", "a single node", "go and see"); "frontend" for its "UI", with the rest of
+# that pattern in a (?i:...) group. The other terms ignore case.
+_CASE_SENSITIVE = {"react", "node", "go", "frontend"}
 _STACK_RX = {k: re.compile(v, 0 if k in _CASE_SENSITIVE else re.I) for k, v in STACK_TERMS.items()}
 
 

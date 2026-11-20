@@ -28,12 +28,14 @@ def is_over_level(title):
 
 
 # A role with no sign of frontend work: its full JD names no frontend framework (find_jobs.py's
-# `stack`) and its title isn't a frontend-shaped one. A fullstack or web role whose JD never
-# names its framework is kept for the judge, who scores the framework as unstated.
-FRONTEND_STACK = {"vue", "angular", "react", "svelte"}
+# `stack`) and its title isn't a frontend-shaped one. A role whose title or JD shows frontend
+# work without naming a framework is kept for the judge, who scores the framework as unstated.
+# `frontend` is frontend work described in words ("front-end", "full stack", "client-side",
+# "UI"), so a generic title whose JD describes frontend work without a framework is kept.
+FRONTEND_STACK = {"vue", "angular", "react", "svelte", "frontend"}
 FRONTEND_TITLE = re.compile(
-    r"front.?end|full.?stack|\bweb\b|\bui\b|\bux\b|user interface|design (?:engineer|systems?)|"
-    r"product engineer|javascript|typescript|client|interface", re.I)
+    r"front\s*-?\s*end|full\s*-?\s*stack|\bweb(?:site|flow)?\b|\bui\b|\bux\b|user interface|"
+    r"design (?:engineer|systems?)|product engineer|javascript|typescript|client\s*-?\s*side", re.I)
 
 
 def no_frontend_signal(j):
