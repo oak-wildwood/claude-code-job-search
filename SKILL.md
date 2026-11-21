@@ -251,10 +251,30 @@ Steps (run after the pre-filter; use the contract filenames in contract mode):
    stop and tell the user. Never show an unfiltered list.
 4. **Judge** the filtered file as in workflow step 3, then **record details** for
    each shortlisted posting (with `judge_rubric`, bands A-C only; D is never recorded):
-   `funnel record surfaced --url '<url>' --employer '<company>' --title '<title>' --note '<the line from workflow step 4>' --pay '<pay as shown>' --snippet '<short description excerpt>'`
+   `funnel record surfaced --url '<url>' --employer '<company>' --title '<title>' --note '<the line from workflow step 4>' --pay '<pay as shown>' --snippet '<short description excerpt>' <rubric>`
    adding `--lane contract` in contract mode. Single quotes keep the shell from
    expanding `$` (`'$180k'`, not `"$180k"`), so write any `'` inside a value as
    `'\''` (e.g. `--snippet 'We'\''re hiring'`); snippets often contain one.
+
+   **`<rubric>`** (with `judge_rubric` only) passes the scores behind the band
+   line, so the To Apply page can show the breakdown:
+   `--band '<A|B|C>' --score '<n.nn>' --frontend-fit '<s>' --backend-fit '<s>' --scope-fit '<s>' --comp '<s>' --freshness-legit '<s>' --remote-durability '<s>' --network '<s>' --company-health '<s>'`
+   - Each `<s>` is the dimension's 1-5 score from workflow step 3b, followed by
+     `:est` when step 3c marks it inferred (e.g. `'3:est'`).
+   - `--company-health` is `'3:unchecked'` when no news lookup was done for that
+     posting (step 3e looks up only A and B, and none when no tool reaches the
+     news); after a lookup, the rescored value, with no `:unchecked`.
+   - `--score` is the step 3d score to two decimals, after the health rescore;
+     `--band` is its band, after the `est` cap.
+   - Give all ten or none. job-funnel recomputes the score and band with the
+     **default** weights, band edges and `max_est_for_A` and refuses a record that
+     disagrees, writing nothing. If `judge_rubric` in `config.json` changes any
+     of those, leave `<rubric>` off.
+   - If a record is refused for its rubric, recompute that posting and try once
+     more; if it is refused again, record it without `<rubric>` and tell the user.
+     If job-funnel calls a rubric option unknown (a version from before rubrics),
+     record every posting without `<rubric>` and say so once. (An unattended run
+     started from job-funnel follows its own prompt, which skips the posting.)
 5. **End at the page.** By default, finish with one line and no one-by-one triage,
    e.g. `9 new postings on the To Apply page: <to_apply_url>`. This replaces
    workflow steps 4-5 (the long terminal shortlist and triage).

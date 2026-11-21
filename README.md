@@ -64,7 +64,7 @@ job-funnel is a local job-search funnel tracker with a CLI and a web UI. It is o
 
 With this section present, a run:
 1. filters the pre-filtered postings through job-funnel's `filter` (dropping ones already applied or passed; no backup import is needed) and stops if it fails, rather than showing an unfiltered list;
-2. records each shortlisted posting with its note, pay and snippet (`record surfaced`);
+2. records each shortlisted posting with its note, pay and snippet, plus its band, score and dimension scores when `judge_rubric` is set (`record surfaced`);
 3. ends with one line pointing at the To Apply page instead of a long terminal triage.
 
 Say "triage with me" for the one-by-one chat flow: Pass, Pass Company (blocks the company), and Save write the same records the page would; Apply records nothing, since you log applications in your own application log, which job-funnel reads.
